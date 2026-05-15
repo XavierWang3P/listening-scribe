@@ -1,0 +1,165 @@
+:root {
+  --asr-bg: #f5f7fb;
+  --asr-panel: #ffffff;
+  --asr-border: #d8deea;
+  --asr-text: #202532;
+  --asr-muted: #667085;
+  --asr-accent: #2563eb;
+  --asr-log: #101828;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  min-height: 100vh;
+  background: var(--asr-bg);
+  color: var(--asr-text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  letter-spacing: 0;
+}
+
+.app-header {
+  background: var(--asr-panel);
+  border-bottom: 1px solid var(--asr-border);
+}
+
+.app-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: .7rem;
+  min-width: 0;
+}
+
+.app-logo {
+  width: 2.25rem;
+  height: 2.25rem;
+  flex: 0 0 auto;
+  border-radius: 8px;
+  object-fit: cover;
+  box-shadow: 0 6px 18px rgb(37 99 235 / 18%);
+}
+
+.app-title {
+  font-size: 1.35rem;
+  line-height: 1.25;
+  font-weight: 760;
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
+}
+
+.card {
+  border-color: var(--asr-border);
+  border-radius: 8px;
+  box-shadow: none;
+}
+
+.history-panel {
+  position: sticky;
+  top: 1rem;
+  max-height: calc(100vh - 2rem);
+  display: flex;
+  flex-direction: column;
+}
+
+.history-list {
+  min-height: 12rem;
+  overflow: auto;
+}
+
+.history-card {
+  display: grid;
+  gap: .55rem;
+  border: 1px solid var(--asr-border);
+  border-radius: 8px;
+  padding: .8rem;
+  background: #fff;
+}
+
+.history-title {
+  font-size: .95rem;
+  font-weight: 650;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.history-meta {
+  color: var(--asr-muted);
+  font-size: .82rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.form-label {
+  color: var(--asr-muted);
+  font-weight: 650;
+}
+
+.btn {
+  border-radius: 6px;
+  font-weight: 650;
+}
+
+.btn-primary {
+  background: var(--asr-accent);
+  border-color: var(--asr-accent);
+}
+
+.btn-soft {
+  --bs-btn-color: var(--asr-accent);
+  --bs-btn-bg: #e8f0ff;
+  --bs-btn-border-color: #e8f0ff;
+  --bs-btn-hover-color: var(--asr-accent);
+  --bs-btn-hover-bg: #dbe8ff;
+  --bs-btn-hover-border-color: #dbe8ff;
+}
+
+.progress {
+  height: .65rem;
+  border-radius: 999px;
+  background: #e7edf8;
+}
+
+.progress-bar {
+  background: var(--asr-accent);
+  transition: width .2s ease;
+}
+
+.result-links {
+  display: flex;
+  gap: .6rem;
+  flex-wrap: wrap;
+}
+
+.log-box {
+  margin: 0;
+  min-height: 10rem;
+  max-height: 22rem;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  background: var(--asr-log);
+  color: #e6edf7;
+  border-radius: 8px;
+  padding: 1rem;
+  font-size: .9rem;
+  line-height: 1.55;
+}
+
+.empty-state {
+  color: var(--asr-muted);
+  font-size: .92rem;
+  line-height: 1.5;
+}
+
+@media (max-width: 991.98px) {
+  .history-panel {
+    position: static;
+    max-height: none;
+  }
+
+  .history-list {
+    max-height: 22rem;
+  }
+}

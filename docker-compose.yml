@@ -1,0 +1,14 @@
+services:
+  server-asr:
+    build: .
+    container_name: server-asr
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      PORT: "8789"
+      DATA_DIR: data
+    ports:
+      - "8789:8789"
+    volumes:
+      - ./data:/app/data
