@@ -252,13 +252,32 @@ def submit_recognition(environ, payload: dict):
         "updated_at": int(time.time()),
     }
 
-    # ── Qwen-ASR：先存任务立即返回 task_id，由 poll 真正发起 API 调用 ──────────
-    # 原因：Qwen-ASR 单次调用最长需数分钟，浏览器 fetch 会超时；改为异步轮询模式
+    # ── Qwen-ASR：启动后台线程执行同步识别并返回 ──────────────────────────────
+    # 原因：Qwen-ASR 为同步 API 调用，单次耗时达数十秒，在单线程 WSGI 服务下会阻塞整个服务，
+    # 且极易触发 Nginx / 反向代理的 60 秒 read timeout。因此采用后台线程异步执行。
     if provider == "aliyun_qwen":
+        import threading
         api_key = _get_credential(credentials, "api_key")
         task["credential_source"] = "env" if env("DASHSCOPE_API_KEY") else "frontend"
-        task["api_key_snapshot"] = api_key  # 存储以便 poll 使用（非敏感存储）
+        task["api_key_snapshot"] = api_key
         write_json(task_path(task_id), task)
+
+        def run_qwen_async():
+            try:
+                from .aliyun_qwen import qwen_recognize
+                plain_text = qwen_recognize(task["provider_audio_url"], api_key=api_key)
+                task["plain_text"] = plain_text
+                manifest = write_artifacts(task, cues=[], raw_data={"text": plain_text})
+                task["status"] = "done"
+                task["manifest"] = manifest
+            except Exception as exc:
+                task["status"] = "failed"
+                task["error"] = str(exc)
+            finally:
+                _cleanup_cloud_storage(task)
+                write_json(task_path(task_id), task)
+
+        threading.Thread(target=run_qwen_async, daemon=True).start()
         return {"ok": True, "status": "processing", "task_id": task_id}
 
     # ── Fun-ASR：异步提交 ──────────────────────────────────────────────────────
@@ -333,27 +352,9 @@ def poll_task(task_id: str, payload: dict | None = None):
 
     task["updated_at"] = int(time.time())
 
-    # ── Qwen-ASR：此时才真正发起同步 API 调用 ────────────────────────────────
-    # poll 请求由前端每 5s 发一次，在此阻塞 Qwen 调用不影响浏览器 fetch 超时
+    # ── Qwen-ASR：后台线程异步执行中，此处仅需直接返回当前轮询状态 ──────────
     if provider == "aliyun_qwen":
-        from .aliyun_qwen import qwen_recognize
-        # 优先用前端实时传入的 api_key，其次用 submit 时快照的 key
-        api_key = _get_credential(credentials, "api_key") or task.get("api_key_snapshot", "")
-        try:
-            plain_text = qwen_recognize(task["provider_audio_url"], api_key=api_key)
-        except RuntimeError as exc:
-            task["status"] = "failed"
-            task["error"] = str(exc)
-            _cleanup_cloud_storage(task)
-            write_json(path, task)
-            return "200 OK", {"ok": True, "status": "failed", "error": task["error"]}
-        task["plain_text"] = plain_text
-        manifest = write_artifacts(task, cues=[], raw_data={"text": plain_text})
-        task["status"] = "done"
-        task["manifest"] = manifest
-        _cleanup_cloud_storage(task)
-        write_json(path, task)
-        return "200 OK", {"ok": True, "status": "done", "manifest": manifest}
+        return "200 OK", {"ok": True, "status": "processing", "message": "Qwen-ASR 正在后台转译中..."}
 
     # ── Fun-ASR / Paraformer ──────────────────────────────────────────────────
     elif provider in {"aliyun_fun", "aliyun_paraformer"}:
