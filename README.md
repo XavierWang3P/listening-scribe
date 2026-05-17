@@ -58,45 +58,45 @@ graph TD
 
 | 模块/文件 | 核心职责 | 技术实现与说明 |
 | --- | --- | --- |
-| [**`app.py`**](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/app.py) | 服务入口 | 基于 Python 标准库 `http.server`，提供静态资源托底服务、API 路由派发及 `--reload` 自动重载热更新功能。 |
-| [**`asr_app/config.py`**](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/asr_app/config.py) | 全局配置与环境初始化 | 负责加载 `.env` 配置文件，管理运行目录（如 `data/`），提供全局的环境变量转换方法。 |
-| [**`asr_app/routes.py`**](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/asr_app/routes.py) | HTTP 路由控制 | 解析 HTTP 请求方法、路径与查询参数，分发至 `service.py` 对应的方法，提供跨域支持。 |
-| [**`asr_app/http_utils.py`**](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/asr_app/http_utils.py) | HTTP 工具集 | 封装了 JSON 响应、重定向、大文件断点续传（Range 请求）及音频流直通等机制。 |
-| [**`asr_app/storage.py`**](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/asr_app/storage.py) | 数据持久化与索引 | 维护 `manifest.json` 索引，实现对音频的 SHA256 唯一性校验，避免相同文件重复上传与重复识别计费。 |
-| [**`asr_app/service.py`**](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/asr_app/service.py) | 业务流程编排 | 协调“上传 ➔ 去重校验 ➔ 云端任务分发 ➔ 状态轮询/同步响应 ➔ 字幕生成 ➔ 历史管理”的完整流程逻辑。 |
-| [**`asr_app/providers.py`**](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/asr_app/providers.py) | ASR 服务商元数据 | 统一声明五大转写服务的配置约束（凭证字段、引导信息、支持特性等），动态输出给前端界面渲染。 |
-| [**`asr_app/volcengine.py`**](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/asr_app/volcengine.py) | 火山引擎 ASR 客户端 | 封装火山引擎“提交录音任务 (submit) + 轮询查询 (query)”的 HTTP 交互逻辑。 |
-| [**`asr_app/tencent_asr.py`**](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/asr_app/tencent_asr.py) | 腾讯云 ASR 客户端 | 基于腾讯云 API 3.0 签名机制，原生实现 `CreateRecTask` 和 `DescribeTaskStatus`，不依赖第三方 SDK。 |
-| [**`asr_app/aliyun_fun.py`**](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/asr_app/aliyun_fun.py) | 阿里云百炼 Fun-ASR 客户端 | 原生对接 DashScope REST API 录音文件转写服务，支持 Paraformer-v2 和 Fun-ASR 模型的多语言句级时间戳。 |
-| [**`asr_app/aliyun_qwen.py`**](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/asr_app/aliyun_qwen.py) | 阿里云百炼 Qwen-ASR 客户端 | 对接千问语音大模型（Qwen3-ASR-Flash），使用同步调用接口（仅生成纯文本，无时间戳）。 |
-| [**`asr_app/subtitles.py`**](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/asr_app/subtitles.py) | 字幕格式生成 | 解析各云端返回的标准化 Cues 列表，生成并输出 `.txt` 文本、`.srt` 字幕、`.vtt` 字幕及原始 `.json` 结构。 |
-| [**`asr_app/subtitle_template.py`**](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/asr_app/subtitle_template.py) | 字幕网页渲染引擎 | 负责将 `templates/` 下的网页源码装配动态数据，通过 `TEMPLATE_VERSION` 机制实现样式重构。 |
-| [**`asr_app/templates/`**](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/asr_app/templates) | 字幕播放页前端模板 | 包含置顶播放控制栏、进度拖动、高亮聚焦字幕行等交互式播放源码。 |
+| [`app.py`](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/app.py) | 服务入口 | 基于 Python 标准库 `http.server`，提供静态资源托底服务、API 路由派发及 `--reload` 自动重载热更新功能。 |
+| [`asr_app/config.py`](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/asr_app/config.py) | 全局配置与环境初始化 | 负责加载 `.env` 配置文件，管理运行目录（如 `data/`），提供全局的环境变量转换方法。 |
+| [`asr_app/routes.py`](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/asr_app/routes.py) | HTTP 路由控制 | 解析 HTTP 请求方法、路径与查询参数，分发至 `service.py` 对应的方法，提供跨域支持。 |
+| [`asr_app/http_utils.py`](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/asr_app/http_utils.py) | HTTP 工具集 | 封装了 JSON 响应、重定向、大文件断点续传（Range 请求）及音频流直通等机制。 |
+| [`asr_app/storage.py`](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/asr_app/storage.py) | 数据持久化与索引 | 维护 `manifest.json` 索引，实现对音频的 SHA256 唯一性校验，避免相同文件重复上传与重复识别计费。 |
+| [`asr_app/service.py`](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/asr_app/service.py) | 业务流程编排 | 协调“上传 ➔ 去重校验 ➔ 云端任务分发 ➔ 状态轮询/同步响应 ➔ 字幕生成 ➔ 历史管理”的完整流程逻辑。 |
+| [`asr_app/providers.py`](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/asr_app/providers.py) | ASR 服务商元数据 | 统一声明五大转写服务的配置约束（凭证字段、引导信息、支持特性等），动态输出给前端界面渲染。 |
+| [`asr_app/volcengine.py`](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/asr_app/volcengine.py) | 火山引擎 ASR 客户端 | 封装火山引擎“提交录音任务 (submit) + 轮询查询 (query)”的 HTTP 交互逻辑。 |
+| [`asr_app/tencent_asr.py`](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/asr_app/tencent_asr.py) | 腾讯云 ASR 客户端 | 基于腾讯云 API 3.0 签名机制，原生实现 `CreateRecTask` 和 `DescribeTaskStatus`，不依赖第三方 SDK。 |
+| [`asr_app/aliyun_fun.py`](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/asr_app/aliyun_fun.py) | 阿里云百炼 Fun-ASR 客户端 | 原生对接 DashScope REST API 录音文件转写服务，支持 Paraformer-v2 和 Fun-ASR 模型的多语言句级时间戳。 |
+| [`asr_app/aliyun_qwen.py`](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/asr_app/aliyun_qwen.py) | 阿里云百炼 Qwen-ASR 客户端 | 对接千问语音大模型（Qwen3-ASR-Flash），使用同步调用接口（仅生成纯文本，无时间戳）。 |
+| [`asr_app/subtitles.py`](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/asr_app/subtitles.py) | 字幕格式生成 | 解析各云端返回的标准化 Cues 列表，生成并输出 `.txt` 文本、`.srt` 字幕、`.vtt` 字幕及原始 `.json` 结构。 |
+| [`asr_app/subtitle_template.py`](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/asr_app/subtitle_template.py) | 字幕网页渲染引擎 | 负责将 `templates/` 下的网页源码装配动态数据，通过 `TEMPLATE_VERSION` 机制实现样式重构。 |
+| [`asr_app/templates/`](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/asr_app/templates) | 字幕播放页前端模板 | 包含置顶播放控制栏、进度拖动、高亮聚焦字幕行等交互式播放源码。 |
 
 ---
 
 ## 🌟 功能特点
 
-1. **多服务商支持**：已全量接入火山引擎、阿里云百炼、腾讯云 ASR 服务。
-2. **单页交互界面**：主页使用 Bootstrap 5 构建，支持历史记录管理、服务商切换、接口日志实时追加以及 API 密钥 Cookie 选项。
-3. **双重凭证安全机制**：
+1. 多服务商支持：已全量接入火山引擎、阿里云百炼、腾讯云 ASR 服务。
+2. 单页交互界面：主页使用 Bootstrap 5 构建，支持历史记录管理、服务商切换、接口日志实时追加以及 API 密钥 Cookie 选项。
+3. 双重凭证安全机制：
    * 支持后端 `.env` 全局配置，对访问者隐藏凭证细节；
-   * 支持前端 Web 界面临时输入 API 凭证，**前端输入具有绝对优先权**，避免了环境变量覆盖问题。
-4. **智能 SHA256 去重**：上传音频时自动计算哈希并匹配，命中缓存时秒级返回结果，避免重复上传和扣费。支持勾选“强制重新识别”。
-5. **本地存储**：音频文件和转写结果完全保存在部署服务器本地，不依赖第三方对象存储（COS/OSS）。
-6. **无第三方依赖**：后端基于 Python 纯原生标准库构建，不需要执行 `pip install` 安装第三方包，部署简单。
+   * 支持前端 Web 界面临时输入 API 凭证，前端输入具有绝对优先权，避免环境变量覆盖问题。
+4. 智能 SHA256 去重：上传音频时自动计算哈希并匹配，命中缓存时秒级返回结果，避免重复上传和扣费。支持勾选“强制重新识别”。
+5. 本地存储：音频文件和转写结果完全保存在部署服务器本地，不依赖第三方对象存储（COS/OSS）。
+6. 无第三方依赖：后端基于 Python 纯原生标准库构建，不需要执行 `pip install` 安装第三方包，部署简单。
 
 ---
 
 ## 🛠️ 部署指南
 
-### 1. 部署环境与公网地址要求 (重要)
+### 1. 部署环境与公网地址要求
 
-由于本工具调用的是云端的 ASR 接口，云端服务器（如火山引擎、阿里云、腾讯云）在接收到转写请求后，**需要通过网络拉取您服务器上的音频文件**。
+由于本工具调用的是云端的 ASR 接口，云端服务器（如火山引擎、阿里云、腾讯云）在接收到转写请求后，需要通过网络拉取您服务器上的音频文件。
 
-因此，本工具**必须配置一个可从公网访问的地址**：
-* **公网云服务器部署**：如果部署在公网 VPS，配置可访问该 VPS 的域名或公网 IP 即可。
-* **本地物理机部署**：如果部署在局域网/本地 PC（如 localhost / 127.0.0.1），**必须使用内网穿透工具（如 frp、ngrok、cloudflare tunnel）**将本地端口（默认 8789）暴露到公网，否则云端 ASR 服务将无法拉取音频，导致转写任务失败。
+因此，本工具必须配置一个可从公网访问的地址：
+* 公网云服务器部署：如果部署在公网 VPS，配置可访问该 VPS 的域名或公网 IP 即可。
+* 本地物理机部署：如果部署在局域网/本地 PC（如 localhost / 127.0.0.1），必须使用内网穿透工具（如 frp、ngrok、cloudflare tunnel）将本地端口（默认 8789）暴露到公网，否则云端 ASR 服务将无法拉取音频，导致转写任务失败。
 
 ### 2. 配置环境变量
 
@@ -187,7 +187,7 @@ server {
 成功转写后，对应记录的物理目录下（默认 `data/results/<record_id>/`）将输出以下文件：
 
 ```text
-├── <filename>                    # 原始音频文件
+├── <filename>                    # 原始音频 file
 ├── transcript/
 │   └── <filename>.txt            # 纯文本转写内容
 ├── subtitles/
@@ -203,9 +203,9 @@ server {
 
 ## 🔒 安全说明
 
-1. **凭证保护**：不要将包含真实 API 密钥时的 `.env` 文件提交到任何公开仓库。
-2. **访问控制**：如果部署在公网环境，建议配置 Nginx 基本认证（Basic Auth）或防火墙限制以保护您的资源额度。
-3. **数据存放**：音频和生成网页存放在 `data/` 目录中，该目录默认已在 `.gitignore` 中排除，不会提交到 Git。
+1. 凭证保护：不要将包含真实 API 密钥的 `.env` 文件提交到任何公开仓库。
+2. 访问控制：如果部署在公网环境，建议配置 Nginx 基本认证（Basic Auth）或防火墙限制以保护您的资源额度。
+3. 数据存放：音频和生成网页存放在 `data/` 目录中，该目录默认已在 `.gitignore` 中排除，不会提交到 Git。
 
 ---
 

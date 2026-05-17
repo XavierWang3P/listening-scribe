@@ -58,45 +58,45 @@ The codebase is built on a modular structure with clear separation of concerns:
 
 | Module/File | Responsibility | Technical Details |
 | --- | --- | --- |
-| [**`app.py`**](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/app.py) | Entrypoint | Based on Python's built-in `http.server`. Supports static assets routing, API dispatch, and a development `--reload` mode. |
-| [**`asr_app/config.py`**](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/asr_app/config.py) | Configuration | Loads the `.env` configuration file, initializes the `data/` data directories, and provides clean environment utilities. |
-| [**`asr_app/routes.py`**](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/asr_app/routes.py) | Router | Parses HTTP request headers, paths, and query arguments, forwarding calls to `service.py` with robust CORS handling. |
-| [**`asr_app/http_utils.py`**](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/asr_app/http_utils.py) | HTTP Utilities | Encapsulates standardized JSON responses, redirection schemes, Range requests (for audio dragging), and audio stream piping. |
-| [**`asr_app/storage.py`**](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/asr_app/storage.py) | Storage Management | Manages `manifest.json` indexing and computes SHA256 hashes to map uploaded audio files, preventing duplicate charging. |
-| [**`asr_app/service.py`**](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/asr_app/service.py) | Business Logic | Orchestrates the entire transcription lifecycle: Upload ➔ Hash Deduplication ➔ Task Submission ➔ Polling/Sync ➔ Compilation ➔ Deletion. |
-| [**`asr_app/providers.py`**](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/asr_app/providers.py) | Providers metadata | Declares the properties, guidelines, credential requirements, and support status of the five integrated ASR services. |
-| [**`asr_app/volcengine.py`**](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/asr_app/volcengine.py) | Volcengine Client | Implements the submit-and-poll lifecycle for Volcengine ASR. |
-| [**`asr_app/tencent_asr.py`**](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/asr_app/tencent_asr.py) | Tencent Client | Built with native Tencent Cloud API 3.0 signing mechanisms (`CreateRecTask` / `DescribeTaskStatus`), eliminating SDK overhead. |
-| [**`asr_app/aliyun_fun.py`**](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/asr_app/aliyun_fun.py) | Aliyun Paraformer Client | Integrates DashScope REST API for Paraformer-v2 and Fun-ASR models with multilingual sentence-level timestamp extraction. |
-| [**`asr_app/aliyun_qwen.py`**](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/asr_app/aliyun_qwen.py) | Aliyun Qwen Client | Integrates Aliyun's Qwen3-ASR-Flash voice LLM. Returns synchronous text transcripts without polling (no timestamps). |
-| [**`asr_app/subtitles.py`**](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/asr_app/subtitles.py) | Subtitle Generation | Parses the standardized cues and compiles them into `.txt`, `.srt`, `.vtt`, and raw `.json` formatted files. |
-| [**`asr_app/subtitle_template.py`**](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/asr_app/subtitle_template.py) | Page Compilation | Hydrates static template pages with dynamic parameters, utilizing `TEMPLATE_VERSION` caching to manage immediate cache invalidation. |
-| [**`asr_app/templates/`**](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/asr_app/templates) | Player Templates | Frontend templates (HTML/CSS/JS) featuring custom control panels, precise seek mechanisms, and high-contrast synchronizations. |
+| [`app.py`](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/app.py) | Entrypoint | Based on Python's built-in `http.server`. Supports static assets routing, API dispatch, and a development `--reload` mode. |
+| [`asr_app/config.py`](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/asr_app/config.py) | Configuration | Loads the `.env` configuration file, initializes the `data/` data directories, and provides clean environment utilities. |
+| [`asr_app/routes.py`](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/asr_app/routes.py) | Router | Parses HTTP request headers, paths, and query arguments, forwarding calls to `service.py` with robust CORS handling. |
+| [`asr_app/http_utils.py`](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/asr_app/http_utils.py) | HTTP Utilities | Encapsulates standardized JSON responses, redirection schemes, Range requests (for audio dragging), and audio stream piping. |
+| [`asr_app/storage.py`](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/asr_app/storage.py) | Storage Management | Manages `manifest.json` indexing and computes SHA256 hashes to map uploaded audio files, preventing duplicate charging. |
+| [`asr_app/service.py`](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/asr_app/service.py) | Business Logic | Orchestrates the entire transcription lifecycle: Upload ➔ Hash Deduplication ➔ Task Submission ➔ Polling/Sync ➔ Compilation ➔ Deletion. |
+| [`asr_app/providers.py`](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/asr_app/providers.py) | Providers metadata | Declares the properties, guidelines, credential requirements, and support status of the five integrated ASR services. |
+| [`asr_app/volcengine.py`](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/asr_app/volcengine.py) | Volcengine Client | Implements the submit-and-poll lifecycle for Volcengine ASR. |
+| [`asr_app/tencent_asr.py`](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/asr_app/tencent_asr.py) | Tencent Client | Built with native Tencent Cloud API 3.0 signing mechanisms (`CreateRecTask` / `DescribeTaskStatus`), eliminating SDK overhead. |
+| [`asr_app/aliyun_fun.py`](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/asr_app/aliyun_fun.py) | Aliyun Paraformer Client | Integrates DashScope REST API for Paraformer-v2 and Fun-ASR models with multilingual sentence-level timestamp extraction. |
+| [`asr_app/aliyun_qwen.py`](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/asr_app/aliyun_qwen.py) | Aliyun Qwen Client | Integrates Aliyun's Qwen3-ASR-Flash voice LLM. Returns synchronous text transcripts without polling (no timestamps). |
+| [`asr_app/subtitles.py`](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/asr_app/subtitles.py) | Subtitle Generation | Parses the standardized cues and compiles them into `.txt`, `.srt`, `.vtt`, and raw `.json` formatted files. |
+| [`asr_app/subtitle_template.py`](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/asr_app/subtitle_template.py) | Page Compilation | Hydrates static template pages with dynamic parameters, utilizing `TEMPLATE_VERSION` caching to manage immediate cache invalidation. |
+| [`asr_app/templates/`](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/asr_app/templates) | Player Templates | Frontend templates (HTML/CSS/JS) featuring custom control panels, precise seek mechanisms, and high-contrast synchronizations. |
 
 ---
 
 ## 🌟 Key Features
 
-1. **Multiple ASR Providers**: Supports Volcengine ASR, Tencent Cloud ASR, Aliyun Paraformer-v2, Fun-ASR, and Qwen-ASR.
-2. **Single-Page UI**: Bootstrap 5 web UI with history management, provider selection, real-time logging, and credential cookie settings.
-3. **Dual Credential Mode**:
+1. Multiple ASR Providers: Supports Volcengine ASR, Tencent Cloud ASR, Aliyun Paraformer-v2, Fun-ASR, and Qwen-ASR.
+2. Single-Page UI: Bootstrap 5 web UI with history management, provider selection, real-time logging, and credential cookie settings.
+3. Dual Credential Mode:
    * Supports server-side `.env` configuration to keep credentials completely hidden from clients.
-   * Supports frontend temporary inputs (with "Remember credentials" options). **Frontend inputs carry absolute priority**, avoiding env-key overrides.
-4. **SHA256-Based Deduplication**: Computes audio file hashes to check against existing manifests, yielding **instant cache hits**, zero repeated uploads, and zero repeated cloud costs.
-5. **No Cloud Object Storage (COS) Dependency**: Audio and transcription files are fully hosted on the local server, preventing CORS limits, expired links, and Range requests dragging issues.
-6. **No Third-Party Python Dependencies**: Built entirely on native Python standard libraries.
+   * Supports frontend temporary inputs (with "Remember credentials" options). Frontend inputs carry absolute priority, avoiding env-key overrides.
+4. SHA256-Based Deduplication: Computes audio file hashes to check against existing manifests, yielding instant cache hits, zero repeated uploads, and zero repeated cloud costs.
+5. No Cloud Object Storage (COS) Dependency: Audio and transcription files are fully hosted on the local server, preventing CORS limits, expired links, and Range requests dragging issues.
+6. No Third-Party Python Dependencies: Built entirely on native Python standard libraries.
 
 ---
 
 ## 🛠️ Installation & Getting Started
 
-### 1. Requirements for Publicly Reachable URL (Crucial)
+### 1. Requirements for Publicly Reachable URL
 
-Because cloud ASR engines (Volcengine, Aliyun, Tencent Cloud) pull audio files asynchronously, **their servers must be able to fetch the audio file from your server over the internet**.
+Because cloud ASR engines (Volcengine, Aliyun, Tencent Cloud) pull audio files asynchronously, their servers must be able to fetch the audio file from your server over the internet.
 
-Therefore, the app **requires a publicly reachable URL**:
-* **Cloud Server (VPS) Deployment**: If deploying on a public VPS, simply set your domain or public IP.
-* **Local Machine / LAN Deployment**: If running locally (e.g. localhost / 127.0.0.1), **you must use an intranet penetration / tunneling tool (e.g. frp, ngrok, cloudflare tunnel)** to expose the local port (default 8789) to the internet. Otherwise, cloud platforms will fail to fetch the audio, resulting in failed transcription tasks.
+Therefore, the app requires a publicly reachable URL:
+* Cloud Server (VPS) Deployment: If deploying on a public VPS, simply set your domain or public IP.
+* Local Machine / LAN Deployment: If running locally (e.g. localhost / 127.0.0.1), you must use an intranet penetration / tunneling tool (e.g. frp, ngrok, cloudflare tunnel) to expose the local port (default 8789) to the internet. Otherwise, cloud platforms will fail to fetch the audio, resulting in failed transcription tasks.
 
 ### 2. Configure Environment
 
@@ -201,9 +201,9 @@ Upon successful transcription, files are arranged in the `data/results/<record_i
 
 ## 🔒 Security Practices
 
-1. **Keep Secrets Hidden**: Never commit your `.env` containing live secrets to a public Git repository.
-2. **Access Control**: For deployments open to the public web, configure Basic Auth in Nginx or firewall limits to prevent unauthorized resource utilization.
-3. **Data Safety**: The local `data/` runtime directories are ignored in `.gitignore`, keeping your uploaded audio assets fully secured.
+1. Credential Protection: Never commit your `.env` containing live secrets to a public Git repository.
+2. Access Control: For deployments open to the public web, configure Basic Auth in Nginx or firewall limits to prevent unauthorized resource utilization.
+3. Data Safety: The local `data/` runtime directories are ignored in `.gitignore`, keeping your uploaded audio assets fully secured.
 
 ---
 
