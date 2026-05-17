@@ -215,7 +215,25 @@ def submit_recognition(environ, payload: dict):
         return {"ok": True, "status": "done", "cached": True, "manifest": refresh_cached_manifest(record_id)}
 
     ensure_provider_supported(provider)
+
+    # ── 检测是否启用云存储上传（COS / OSS），优先使用云存储以支持零内网穿透本地部署 ──
+    from .cloud_storage import is_cloud_storage_enabled, cos_upload, oss_upload
+    from .storage import audio_folder
+
     audio_url = absolute_url(environ, meta["audio_url"])
+    cloud_key = None
+    cloud_provider = None
+
+    if is_cloud_storage_enabled():
+        local_path = audio_folder(record_id) / meta["filename"]
+        if local_path.exists():
+            provider_type = (env("UPLOAD_PROVIDER") or "").lower().strip()
+            cloud_provider = provider_type
+            cloud_key = f"listening-scribe/{record_id}/{meta['filename']}"
+            if provider_type == "cos":
+                audio_url = cos_upload(local_path, cloud_key)
+            elif provider_type == "oss":
+                audio_url = oss_upload(local_path, cloud_key)
 
     task_id = str(uuid.uuid4())
     task = {
@@ -228,6 +246,8 @@ def submit_recognition(environ, payload: dict):
         "audio_hash": audio_hash,
         "audio_url": meta["audio_url"],
         "provider_audio_url": audio_url,
+        "cloud_key": cloud_key,
+        "cloud_provider": cloud_provider,
         "created_at": int(time.time()),
         "updated_at": int(time.time()),
     }
@@ -285,6 +305,17 @@ def submit_recognition(environ, payload: dict):
 
 # ── 轮询任务 ──────────────────────────────────────────────────────────────────
 
+def _cleanup_cloud_storage(task: dict):
+    cloud_provider = task.get("cloud_provider")
+    cloud_key = task.get("cloud_key")
+    if cloud_provider and cloud_key:
+        from .cloud_storage import cos_delete, oss_delete
+        if cloud_provider == "cos":
+            cos_delete(cloud_key)
+        elif cloud_provider == "oss":
+            oss_delete(cloud_key)
+
+
 def poll_task(task_id: str, payload: dict | None = None):
     path = task_path(task_id)
     if not path.exists():
@@ -313,12 +344,14 @@ def poll_task(task_id: str, payload: dict | None = None):
         except RuntimeError as exc:
             task["status"] = "failed"
             task["error"] = str(exc)
+            _cleanup_cloud_storage(task)
             write_json(path, task)
             return "200 OK", {"ok": True, "status": "failed", "error": task["error"]}
         task["plain_text"] = plain_text
         manifest = write_artifacts(task, cues=[], raw_data={"text": plain_text})
         task["status"] = "done"
         task["manifest"] = manifest
+        _cleanup_cloud_storage(task)
         write_json(path, task)
         return "200 OK", {"ok": True, "status": "done", "manifest": manifest}
 
@@ -333,11 +366,13 @@ def poll_task(task_id: str, payload: dict | None = None):
             manifest = write_artifacts(task, cues, raw_data=sentences)
             task["status"] = "done"
             task["manifest"] = manifest
+            _cleanup_cloud_storage(task)
             write_json(path, task)
             return "200 OK", {"ok": True, "status": "done", "manifest": manifest}
         if status == "FAILED":
             task["status"] = "failed"
             task["error"] = "Fun-ASR task failed"
+            _cleanup_cloud_storage(task)
             write_json(path, task)
             return "200 OK", {"ok": True, "status": "failed", "error": task["error"]}
         # PENDING / RUNNING
@@ -349,14 +384,23 @@ def poll_task(task_id: str, payload: dict | None = None):
         from .tencent_asr import tencent_query
         secret_id = _get_credential(credentials, "secret_id")
         secret_key = _get_credential(credentials, "secret_key")
-        status_str, result_detail = tencent_query(
-            task["provider_task_id"], secret_id=secret_id, secret_key=secret_key
-        )
+        try:
+            status_str, result_detail = tencent_query(
+                task["provider_task_id"], secret_id=secret_id, secret_key=secret_key
+            )
+        except Exception as exc:
+            task["status"] = "failed"
+            task["error"] = str(exc)
+            _cleanup_cloud_storage(task)
+            write_json(path, task)
+            return "200 OK", {"ok": True, "status": "failed", "error": task["error"]}
+
         if status_str == "success":
             cues = extract_cues_tencent(result_detail or [])
             manifest = write_artifacts(task, cues, raw_data=result_detail)
             task["status"] = "done"
             task["manifest"] = manifest
+            _cleanup_cloud_storage(task)
             write_json(path, task)
             return "200 OK", {"ok": True, "status": "done", "manifest": manifest}
         # waiting / doing
@@ -376,6 +420,7 @@ def poll_task(task_id: str, payload: dict | None = None):
             manifest = write_artifacts_volc(task, parsed)
             task["status"] = "done"
             task["manifest"] = manifest
+            _cleanup_cloud_storage(task)
             write_json(path, task)
             return "200 OK", {"ok": True, "status": "done", "manifest": manifest}
         if status in {"20000001", "20000002"}:
@@ -383,6 +428,7 @@ def poll_task(task_id: str, payload: dict | None = None):
             return "200 OK", {"ok": True, "status": "processing", "message": message}
         task["status"] = "failed"
         task["error"] = f"{status} {message}"
+        _cleanup_cloud_storage(task)
         write_json(path, task)
         return "200 OK", {"ok": True, "status": "failed", "error": task["error"]}
 

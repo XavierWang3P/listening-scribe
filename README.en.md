@@ -96,7 +96,8 @@ Because cloud ASR engines (Volcengine, Aliyun, Tencent Cloud) pull audio files a
 
 Therefore, the app requires a publicly reachable URL:
 * Cloud Server (VPS) Deployment: If deploying on a public VPS, simply set your domain or public IP.
-* Local Machine / LAN Deployment: If running locally (e.g. localhost / 127.0.0.1), you must use an intranet penetration / tunneling tool (e.g. frp, ngrok, cloudflare tunnel) to expose the local port (default 8789) to the internet. Otherwise, cloud platforms will fail to fetch the audio, resulting in failed transcription tasks.
+* Local Machine with Intranet Penetration: If running locally (e.g. localhost / 127.0.0.1) and using an intranet penetration / tunneling tool (e.g. frp, ngrok, cloudflare tunnel), set `PUBLIC_BASE_URL` to your public mapped address.
+* Local Machine without Intranet Penetration (Cloud Storage Upload): You can configure a private cloud storage bucket (Tencent Cloud COS or Aliyun OSS). The backend will automatically upload the audio file to your cloud storage before submitting the task, generate a 24-hour pre-signed GET URL for cloud ASR downloads, and automatically delete the audio from the cloud storage once the ASR task is finalized (success or failure) to minimize storage costs.
 
 ### 2. Configure Environment
 
@@ -120,9 +121,25 @@ TENCENT_SECRET_ID=your_tencent_secret_id
 TENCENT_SECRET_KEY=your_tencent_secret_key
 TENCENT_REGION=ap-guangzhou
 
+# Cloud Storage Upload (Optional, recommended for local deployment without tunneling)
+# Supported values: cos (Tencent Cloud) or oss (Aliyun), leave empty to use local storage URL
+UPLOAD_PROVIDER=
+
+# Tencent Cloud COS Configs (Optional, falls back to TENCENT_SECRET_ID/KEY/REGION)
+COS_SECRET_ID=
+COS_SECRET_KEY=
+COS_REGION=ap-guangzhou
+COS_BUCKET=your-cos-bucket-name
+
+# Aliyun OSS Configs (Optional)
+OSS_ACCESS_KEY_ID=your_oss_access_key_id
+OSS_ACCESS_KEY_SECRET=your_oss_access_key_secret
+OSS_ENDPOINT=oss-cn-hangzhou.aliyuncs.com
+OSS_BUCKET=your-oss-bucket-name
+
 # Server Configurations
 PORT=8789
-PUBLIC_BASE_URL=https://your-public-domain-or-tunnel.com  # Must be reachable by cloud providers
+PUBLIC_BASE_URL=https://your-public-domain-or-tunnel.com  # Optional if UPLOAD_PROVIDER is configured
 DATA_DIR=data
 MAX_UPLOAD_MB=500
 ALLOWED_ORIGIN=*

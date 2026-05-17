@@ -96,7 +96,8 @@ graph TD
 
 因此，本工具必须配置一个可从公网访问的地址：
 * 公网云服务器部署：如果部署在公网 VPS，配置可访问该 VPS 的域名或公网 IP 即可。
-* 本地物理机部署：如果部署在局域网/本地 PC（如 localhost / 127.0.0.1），必须使用内网穿透工具（如 frp、ngrok、cloudflare tunnel）将本地端口（默认 8789）暴露到公网，否则云端 ASR 服务将无法拉取音频，导致转写任务失败。
+* 本地物理机且有公网 IP/域名：必须使用内网穿透工具（如 frp、ngrok、cloudflare tunnel）将本地端口（默认 8789）暴露到公网，并将 `PUBLIC_BASE_URL` 设置为该穿透公网地址。
+* 本地物理机且无内网穿透：可通过配置云存储（Tencent COS 或 Aliyun OSS）。配置后，系统会在提交转写任务前自动将音频上传至您指定的私有云存储桶，并生成 24 小时过期的预签名 GET 地址供云端 ASR 引擎下载；转写任务完成（成功或失败）后，系统将自动从云存储空间中删除该音频以节省空间。
 
 ### 2. 配置环境变量
 
@@ -120,9 +121,25 @@ TENCENT_SECRET_ID=your_tencent_secret_id
 TENCENT_SECRET_KEY=your_tencent_secret_key
 TENCENT_REGION=ap-guangzhou
 
+# 云存储上传配置（可选，本地部署且不使用内网穿透时推荐配置）
+# 支持的值：cos（腾讯云）或 oss（阿里云），留空则使用本地存储 URL
+UPLOAD_PROVIDER=
+
+# 腾讯云 COS 配置 (可选，留空则默认复用 TENCENT_SECRET_ID 和 TENCENT_SECRET_KEY)
+COS_SECRET_ID=
+COS_SECRET_KEY=
+COS_REGION=ap-guangzhou
+COS_BUCKET=your-cos-bucket-name
+
+# 阿里云 OSS 配置 (可选)
+OSS_ACCESS_KEY_ID=your_oss_access_key_id
+OSS_ACCESS_KEY_SECRET=your_oss_access_key_secret
+OSS_ENDPOINT=oss-cn-hangzhou.aliyuncs.com
+OSS_BUCKET=your-oss-bucket-name
+
 # 服务端配置
 PORT=8789
-PUBLIC_BASE_URL=https://your-public-domain-or-tunnel.com  # 必须是云服务商可访问的公网地址
+PUBLIC_BASE_URL=https://your-public-domain-or-tunnel.com  # 如果配置了 UPLOAD_PROVIDER，此项可留空
 DATA_DIR=data
 MAX_UPLOAD_MB=500
 ALLOWED_ORIGIN=*
