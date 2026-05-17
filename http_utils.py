@@ -14,10 +14,12 @@ def json_response(start_response, status: str, body):
     headers = [
         ("Content-Type", "application/json; charset=utf-8"),
         ("Content-Length", str(len(data))),
-        ("Access-Control-Allow-Origin", env("ALLOWED_ORIGIN", "*")),
         ("Access-Control-Allow-Methods", "GET,POST,OPTIONS"),
-        ("Access-Control-Allow-Headers", "content-type"),
+        ("Access-Control-Allow-Headers", "content-type, authorization"),
     ]
+    allowed = env("ALLOWED_ORIGIN")
+    if allowed:
+        headers.append(("Access-Control-Allow-Origin", allowed))
     start_response(status, headers)
     return [data]
 
@@ -26,8 +28,10 @@ def bytes_response(start_response, status: str, body: bytes, content_type: str):
     headers = [
         ("Content-Type", content_type),
         ("Content-Length", str(len(body))),
-        ("Access-Control-Allow-Origin", env("ALLOWED_ORIGIN", "*")),
     ]
+    allowed = env("ALLOWED_ORIGIN")
+    if allowed:
+        headers.append(("Access-Control-Allow-Origin", allowed))
     start_response(status, headers)
     return [body]
 
@@ -85,8 +89,10 @@ def file_response(start_response, environ, path: Path, content_type: str | None 
     headers = [
         ("Content-Type", content_type),
         ("Accept-Ranges", "bytes"),
-        ("Access-Control-Allow-Origin", env("ALLOWED_ORIGIN", "*")),
     ]
+    allowed = env("ALLOWED_ORIGIN")
+    if allowed:
+        headers.append(("Access-Control-Allow-Origin", allowed))
     if env("ASR_NO_CACHE") == "1":
         headers.append(("Cache-Control", "no-store"))
     if range_info == "invalid":

@@ -8,6 +8,7 @@
   const providerDropdownMenu = document.querySelector("#providerDropdownMenu");
   const credentialKeyInput = document.querySelector("#credentialKey");
   const credentialSecretInput = document.querySelector("#credentialSecret");
+  const adminTokenInput = document.querySelector("#adminToken");
   const credentialKeyLabel = document.querySelector("#credentialKeyLabel");
   const credentialSecretLabel = document.querySelector("#credentialSecretLabel");
   const credentialHint = document.querySelector("#credentialHint");
@@ -29,6 +30,7 @@
   const historyList = document.querySelector("#historyList");
   const historyCount = document.querySelector("#historyCount");
   const refreshHistoryButton = document.querySelector("#refreshHistory");
+  const startSpinner = document.querySelector("#startSpinner");
 
   let progressValue = 0;
   let activeRecordId = "";
@@ -124,25 +126,19 @@
   }
 
   function setCookie(name, value, maxAgeDays = 180) {
-    document.cookie = `${name}=${encodeURIComponent(value)}; Max-Age=${maxAgeDays * 24 * 60 * 60}; Path=/; SameSite=Lax`;
+    localStorage.setItem(name, value);
   }
 
   function getCookie(name) {
-    const prefix = `${name}=`;
-    return document.cookie
-      .split(";")
-      .map(value => value.trim())
-      .find(value => value.startsWith(prefix))
-      ?.slice(prefix.length) || "";
+    return localStorage.getItem(name) || "";
   }
 
   function deleteCookie(name) {
-    document.cookie = `${name}=; Max-Age=0; Path=/; SameSite=Lax`;
+    localStorage.removeItem(name);
   }
 
   function readCookie(name) {
-    const value = getCookie(name);
-    return value ? decodeURIComponent(value) : "";
+    return getCookie(name);
   }
 
   function credentialShape(providerId = providerSelect.value) {
@@ -192,6 +188,7 @@
     credentialKeyInput.value = readCookie(cookieName(providerId, shape.keyField));
     credentialSecretInput.value = shape.secretField ? readCookie(cookieName(providerId, shape.secretField)) : "";
     rememberCredentialsInput.checked = readCookie(cookieName(providerId, "remember")) === "1";
+    adminTokenInput.value = readCookie("asr_admin_token");
   }
 
   function persistCredentials(providerId = providerSelect.value) {
@@ -201,6 +198,7 @@
       if (shape.secretField) {
         setCookie(cookieName(providerId, shape.secretField), credentialSecretInput.value.trim());
       }
+      setCookie("asr_admin_token", adminTokenInput.value.trim());
       setCookie(cookieName(providerId, "remember"), "1");
       log(t("logCredentialSaved"));
       return;
@@ -209,6 +207,7 @@
     if (shape.secretField) {
       deleteCookie(cookieName(providerId, shape.secretField));
     }
+    deleteCookie("asr_admin_token");
     deleteCookie(cookieName(providerId, "remember"));
     log(t("logCredentialCleared"));
   }
@@ -363,12 +362,17 @@
   }
 
   async function jsonFetch(url, options = {}) {
+    const token = adminTokenInput.value.trim();
+    const headers = {
+      "content-type": "application/json",
+      ...(options.headers || {})
+    };
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
     const response = await fetch(url, {
       ...options,
-      headers: {
-        "content-type": "application/json",
-        ...(options.headers || {})
-      }
+      headers
     });
     const data = await response.json();
     if (!response.ok || !data.ok) {
@@ -395,6 +399,10 @@
       const xhr = new XMLHttpRequest();
       xhr.open("POST", apiUrl(`/api/upload?${params.toString()}`));
       xhr.setRequestHeader("content-type", file.type || "application/octet-stream");
+      const token = adminTokenInput.value.trim();
+      if (token) {
+        xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+      }
       xhr.upload.onprogress = event => {
         if (event.lengthComputable) {
           setProgress(Math.round((event.loaded / event.total) * 45) + 20);
@@ -485,8 +493,13 @@
       card.className = "history-card";
 
       const title = document.createElement("div");
-      title.className = "history-title";
-      title.textContent = item.title || item.filename || item.record_id;
+      title.className = "history-title d-flex align-items-start gap-2";
+      const icon = document.createElement("span");
+      icon.innerHTML = `<svg width="18" height="18" fill="currentColor" viewBox="0 0 16 16" style="margin-top:0.15rem;color:var(--asr-accent);"><path d="M14 4.5V14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h5.5zm-3 0A1.5 1.5 0 0 1 9.5 3V1H4a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V4.5z"/></svg>`;
+      const titleText = document.createElement("span");
+      titleText.className = "text-break";
+      titleText.textContent = item.title || item.filename || item.record_id;
+      title.append(icon, titleText);
 
       const meta = document.createElement("div");
       meta.className = "history-meta";
@@ -497,7 +510,7 @@
       actions.className = "d-flex flex-wrap gap-2";
 
       const openLink = document.createElement("a");
-      openLink.className = "btn btn-soft btn-sm";
+      openLink.className = "btn btn-primary btn-sm";
       openLink.href = apiUrl(item.html_url);
       openLink.target = "_blank";
       openLink.rel = "noopener";
@@ -586,6 +599,7 @@
     }
 
     startButton.disabled = true;
+    if (startSpinner) startSpinner.classList.remove("d-none");
     clearResultLinks();
     setProgress(0);
     setStatus(t("preparingStatus"));
@@ -653,16 +667,50 @@
       log(t("logError", { message: error.message }));
     } finally {
       startButton.disabled = false;
+      if (startSpinner) startSpinner.classList.add("d-none");
     }
   }
 
   function bindEvents() {
-    audioInput.addEventListener("change", () => {
-      const file = audioInput.files && audioInput.files[0];
-      if (file) titleInput.value = titleFromFilename(file.name);
+    form.addEventListener("submit", handleSubmit);
+
+    const dropzone = document.getElementById("dropzone");
+    const dropzoneText = document.getElementById("dropzoneText");
+
+    dropzone.addEventListener("click", () => audioInput.click());
+
+    dropzone.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      dropzone.style.backgroundColor = "var(--primary-100)";
+      dropzone.style.borderColor = "var(--asr-accent) !important";
     });
 
-    form.addEventListener("submit", handleSubmit);
+    dropzone.addEventListener("dragleave", () => {
+      dropzone.style.backgroundColor = "";
+      dropzone.style.borderColor = "var(--asr-accent-soft) !important";
+    });
+
+    dropzone.addEventListener("drop", (e) => {
+      e.preventDefault();
+      dropzone.style.backgroundColor = "";
+      dropzone.style.borderColor = "var(--asr-accent-soft) !important";
+      if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        audioInput.files = e.dataTransfer.files;
+        audioInput.dispatchEvent(new Event('change'));
+      }
+    });
+
+    audioInput.addEventListener("change", () => {
+      const file = audioInput.files && audioInput.files[0];
+      if (file) {
+        titleInput.value = titleFromFilename(file.name);
+        dropzoneText.textContent = `已选择: ${file.name}`;
+        dropzoneText.classList.add("text-success");
+      } else {
+        dropzoneText.textContent = "点击上传音频文件 或 拖拽到此处";
+        dropzoneText.classList.remove("text-success");
+      }
+    });
 
     providerSelect.addEventListener("change", () => {
       setProvider(providerSelect.value, true);
@@ -678,6 +726,20 @@
 
     refreshHistoryButton.addEventListener("click", loadHistory);
     liveToastButton.addEventListener("click", showProviderGuideToast);
+
+    document.querySelectorAll(".toggle-password").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const targetId = btn.dataset.target;
+        const input = document.getElementById(targetId);
+        if (input.type === "password") {
+          input.type = "text";
+          btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" class="bi bi-eye-slash" viewBox="0 0 16 16"><path d="M13.359 11.238C15.06 9.72 16 8 16 8s-3-5.5-8-5.5a7.028 7.028 0 0 0-2.79.588l.77.771A5.944 5.944 0 0 1 8 3.5c2.12 0 3.879 1.168 5.168 2.457A13.134 13.134 0 0 1 14.828 8c-.058.087-.122.183-.195.288-.335.48-.83 1.12-1.465 1.755-.165.165-.337.328-.517.486l.708.709z"/><path d="M11.297 9.176a3.5 3.5 0 0 0-4.474-4.474l.823.823a2.5 2.5 0 0 1 2.829 2.829l.822.822zm-2.943 1.299.822.822a3.5 3.5 0 0 1-4.474-4.474l.823.823a2.5 2.5 0 0 0 2.829 2.829z"/><path d="M3.35 5.47c-.18.16-.353.322-.518.487A13.134 13.134 0 0 0 1.172 8l.195.288c.335.48.83 1.12 1.465 1.755C4.121 11.332 5.881 12.5 8 12.5c.716 0 1.39-.133 2.02-.36l.77.772A7.029 7.029 0 0 1 8 13.5C3 13.5 0 8 0 8s.939-1.721 2.641-3.238l.708.709zm10.296 8.884-12-12 .708-.708 12 12-.708.708z"/></svg>`;
+        } else {
+          input.type = "password";
+          btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" class="bi bi-eye" viewBox="0 0 16 16"><path d="M16 8s-3-5.5-8-5.5S0 8 0 8s3 5.5 8 5.5S16 8 16 8zM1.173 8a13.133 13.133 0 0 1 1.66-2.043C4.12 4.668 5.88 3.5 8 3.5c2.12 0 3.879 1.168 5.168 2.457A13.133 13.133 0 0 1 14.828 8c-.058.087-.122.183-.195.288-.335.48-.83 1.12-1.465 1.755C11.879 11.332 10.119 12.5 8 12.5c-2.12 0-3.879-1.168-5.168-2.457A13.134 13.134 0 0 1 1.172 8z"/><path d="M8 5.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM4.5 8a3.5 3.5 0 1 1 7 0 3.5 3.5 0 0 1-7 0z"/></svg>`;
+        }
+      });
+    });
   }
 
   applyTexts();

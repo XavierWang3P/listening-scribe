@@ -4,7 +4,7 @@ import mimetypes
 import re
 from urllib import parse
 
-from config import PUBLIC_DIR, RESULTS_DIR
+from config import PUBLIC_DIR, RESULTS_DIR, ADMIN_TOKEN
 from http_utils import api_error, bytes_response, file_response, json_response, read_json, redirect_response
 from service import delete_result, get_provider_config, poll_task, submit_recognition, upload_audio
 from storage import get_audio_meta, get_audio_path, manifest_path, read_json_file, result_dir
@@ -13,6 +13,13 @@ from utils import normalized_path, safe_relative_path
 
 RECORD_RE = r"[0-9]{8}-[0-9]{6}-[a-f0-9]{8}|[a-f0-9]{64}"
 logger = logging.getLogger("server_asr.routes")
+
+
+def check_auth(environ) -> bool:
+    if not ADMIN_TOKEN:
+        return True
+    auth_header = environ.get("HTTP_AUTHORIZATION", "")
+    return auth_header == f"Bearer {ADMIN_TOKEN}"
 
 
 def handle_results():
@@ -115,6 +122,10 @@ def application(environ, start_response):
 
     if method == "OPTIONS":
         return bytes_response(start_response, "204 No Content", b"", "text/plain")
+    
+    if path.startswith("/api/") and not check_auth(environ):
+        return json_response(start_response, "401 Unauthorized", {"ok": False, "error": "Unauthorized: Invalid or missing admin token"})
+
     try:
         if path == "/" and method == "GET":
             logger.info("Serving main index.html page")
@@ -165,4 +176,4 @@ def application(environ, start_response):
         return json_response(start_response, "404 Not Found", {"ok": False, "error": "not found"})
     except Exception as exc:
         logger.error(f"Internal server error in request {method} {path}: {exc}", exc_info=True)
-        return json_response(start_response, "500 Internal Server Error", {"ok": False, "error": str(exc)})
+        return json_response(start_response, "500 Internal Server Error", {"ok": False, "error": "Internal Server Error. Please check server logs."})

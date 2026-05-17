@@ -46,7 +46,15 @@
   /* ── Playback UI sync ── */
   function syncPlayButton() {
     const playing = !audio.paused && !audio.ended;
-    playIcon.textContent = playing ? "Ⅱ" : "▶";
+    const playSvg = document.getElementById("playIconSvg");
+    const pauseSvg = document.getElementById("pauseIconSvg");
+    if (playing) {
+      playSvg.classList.add("d-none");
+      pauseSvg.classList.remove("d-none");
+    } else {
+      playSvg.classList.remove("d-none");
+      pauseSvg.classList.add("d-none");
+    }
     playToggle.setAttribute("aria-label", playing ? "暂停" : "播放");
     playToggle.setAttribute("aria-pressed", playing ? "true" : "false");
   }
@@ -59,6 +67,12 @@
     durationTimeEl.textContent = dur ? formatClock(dur) : "--:--";
     seek.value = String(Math.round(ratio * Number(seek.max)));
     seek.style.setProperty("--seek-progress", `${Math.max(0, Math.min(100, ratio * 100))}%`);
+    
+    let bufferRatio = 0;
+    if (dur > 0 && audio.buffered.length > 0) {
+      bufferRatio = audio.buffered.end(audio.buffered.length - 1) / dur;
+    }
+    seek.style.setProperty("--buffer-progress", `${Math.max(0, Math.min(100, bufferRatio * 100))}%`);
   }
 
   function seekBy(delta) {
@@ -158,5 +172,23 @@
       syncProgress();
       audio.play().catch(() => {});
     });
+  });
+
+  document.addEventListener("keydown", (e) => {
+    if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA" || e.target.tagName === "BUTTON") {
+      // Don't override space if focus is on a button or input
+      if (e.code === "Space" && e.target.tagName !== "BODY") return;
+    }
+    
+    if (e.code === "Space") {
+      e.preventDefault();
+      playToggle.click();
+    } else if (e.code === "ArrowLeft") {
+      e.preventDefault();
+      seekBy(-3);
+    } else if (e.code === "ArrowRight") {
+      e.preventDefault();
+      seekBy(3);
+    }
   });
 })();

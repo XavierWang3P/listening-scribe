@@ -33,46 +33,64 @@
           <audio id="audio" class="audio-player" preload="metadata">
             <source src="{audio_src}" type="{audio_type}">
           </audio>
-          <div class="custom-player">
+          <div class="d-flex gap-4 align-items-center">
+          <!-- Visual Anchor -->
+          <div class="rounded-4 d-flex align-items-center justify-content-center text-white" style="width: 80px; height: 80px; background: linear-gradient(135deg, var(--accent-100), var(--asr-accent)); box-shadow: 0 8px 16px var(--primary-200); flex-shrink: 0;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" fill="currentColor" class="bi bi-soundwave" viewBox="0 0 16 16">
+              <path fill-rule="evenodd" d="M8.5 2a.5.5 0 0 1 .5.5v11a.5.5 0 0 1-1 0v-11a.5.5 0 0 1 .5-.5zm-2 2a.5.5 0 0 1 .5.5v7a.5.5 0 0 1-1 0v-7a.5.5 0 0 1 .5-.5zm4 0a.5.5 0 0 1 .5.5v7a.5.5 0 0 1-1 0v-7a.5.5 0 0 1 .5-.5zm-6 1.5A.5.5 0 0 1 5 6v4a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm8 0a.5.5 0 0 1 .5.5v4a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm-10 1A.5.5 0 0 1 3 7v2a.5.5 0 0 1-1 0V7a.5.5 0 0 1 .5-.5zm12 0a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0V7a.5.5 0 0 1 .5-.5z"/>
+            </svg>
+          </div>
+          
+          <div class="custom-player flex-grow-1" style="margin-bottom: 0;">
             <!-- 单行：[▶] [0:00 / 9:00] [══════进度条══════] -->
             <div class="player-main">
-              <button id="playToggle" class="btn player-play" type="button" aria-label="播放">
-                <span id="playIcon" aria-hidden="true">▶</span>
+              <button id="playToggle" class="btn btn-primary player-play flex-shrink-0" type="button" aria-label="播放">
+                <svg id="playIconSvg" xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor" viewBox="0 0 16 16">
+                  <path d="m11.596 8.697-6.363 3.692c-.54.313-1.233-.066-1.233-.697V4.308c0-.63.692-1.01 1.233-.696l6.363 3.692a.802.802 0 0 1 0 1.393"/>
+                </svg>
+                <svg id="pauseIconSvg" class="d-none" xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor" viewBox="0 0 16 16">
+                  <path d="M5.5 3.5A1.5 1.5 0 0 1 7 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5m5 0A1.5 1.5 0 0 1 12 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5"/>
+                </svg>
               </button>
-              <div class="player-time" aria-live="off">
-                <span id="currentTime">0:00</span><span class="player-time-sep">/</span><span id="durationTime">--:--</span>
-              </div>
+              <span id="currentTime" class="player-time-val">0:00</span>
               <label class="visually-hidden" for="seek">播放进度</label>
               <input id="seek" class="player-seek" type="range" min="0" max="1000" step="1" value="0" aria-label="播放进度">
+              <span id="durationTime" class="player-time-val">--:--</span>
             </div>
             <!-- 工具栏 -->
             <div class="player-toolbar">
               <div class="playback-controls">
                 <div class="control-field">
-                  <span class="control-label">倍速</span>
-                  <div class="btn-group btn-group-sm rate-buttons" role="group" aria-label="倍速">
-                    <button type="button" class="btn btn-outline-primary rate-button" data-rate="0.75">0.75x</button>
-                    <button type="button" class="btn btn-outline-primary rate-button active" data-rate="1" aria-pressed="true">1x</button>
-                    <button type="button" class="btn btn-outline-primary rate-button" data-rate="1.25">1.25x</button>
-                    <button type="button" class="btn btn-outline-primary rate-button" data-rate="1.5">1.5x</button>
-                    <button type="button" class="btn btn-outline-primary rate-button" data-rate="2">2x</button>
+                  <span class="control-label" style="color: var(--asr-muted); font-size: 0.85rem;">倍速</span>
+                  <div class="btn-group btn-group-sm rate-buttons" role="group" aria-label="播放速度">
+                    <button class="btn btn-outline-primary rate-button" type="button" data-rate="0.75">0.75x</button>
+                    <button class="btn btn-outline-primary rate-button active" type="button" data-rate="1" aria-pressed="true">1x</button>
+                    <button class="btn btn-outline-primary rate-button" type="button" data-rate="1.25">1.25x</button>
+                    <button class="btn btn-outline-primary rate-button" type="button" data-rate="1.5">1.5x</button>
+                    <button class="btn btn-outline-primary rate-button" type="button" data-rate="2">2x</button>
                   </div>
                 </div>
-                <div class="control-field">
-                  <div class="btn-group btn-group-sm seek-buttons" role="group" aria-label="音频跳转控制">
-                    <button id="back3" class="btn btn-outline-primary" type="button" title="后退 3 秒">−3s</button>
-                    <button id="forward3" class="btn btn-outline-primary" type="button" title="前进 3 秒">+3s</button>
+                <div class="control-field ms-4">
+                  <span class="control-label" style="color: var(--asr-muted); font-size: 0.85rem;">快进/退</span>
+                  <div class="btn-group btn-group-sm rate-buttons" role="group" aria-label="进度微调">
+                    <button id="back3" class="btn btn-outline-primary rate-button" type="button" title="后退 3 秒" aria-label="后退 3 秒">
+                      -3s
+                    </button>
+                    <button id="forward3" class="btn btn-outline-primary rate-button" type="button" title="前进 3 秒" aria-label="前进 3 秒">
+                      +3s
+                    </button>
                   </div>
                 </div>
               </div>
               <div class="setting-controls">
-                <div class="form-check form-switch mb-0">
-                  <input id="hideText" class="form-check-input" type="checkbox" role="switch">
-                  <label class="form-check-label" for="hideText">隐藏转译文本</label>
+                <div class="form-check form-switch m-0">
+                  <input class="form-check-input" type="checkbox" role="switch" id="hideText">
+                  <label class="form-check-label text-secondary small" for="hideText">隐藏转写文本</label>
                 </div>
               </div>
             </div>
           </div>
+        </div>
           <div id="audioError" class="alert alert-danger py-2 mt-3 mb-0 d-none" role="alert"></div>
         </div>
       </div>

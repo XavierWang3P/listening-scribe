@@ -45,6 +45,7 @@ RESULTS_DIR = DATA_DIR / "results"
 TASKS_DIR = DATA_DIR / "tasks"
 TMP_DIR = DATA_DIR / "tmp"
 HASH_DIR = DATA_DIR / "hashes"
+ADMIN_TOKEN = env("ADMIN_TOKEN")
 
 
 def ensure_dirs():
