@@ -1,225 +1,210 @@
 # Listening Scribe
 
-> 听力转写助手：将听力录音转换为文本、字幕和可跳转播放页面。
+> 听力转写助手：一站式自托管音频转写解决方案，将录音转换为文本、字幕和高交互的可跳转播放网页。
 
 [English](README.en.md) | 中文
 
-Listening Scribe 是一个自托管的听力音频转写工具。用户可以在网页中上传音频，程序会调用火山引擎语音识别接口，生成纯文本、SRT、VTT、原始 JSON，以及一个带音频播放器和字幕跳转功能的 HTML 页面。
+Listening Scribe 是一个自托管的听力音频转写工具。用户可以在极简、高端的 Web 界面中上传音频，程序将自动调用云端 ASR 接口，生成纯文本、SRT、VTT、原始 JSON，以及一个内嵌音频播放器与字幕时间戳跳转功能的 HTML 字幕交互网页。
 
-它适合处理英语听力材料、课程录音、口语练习音频、试卷听力录音等需要整理成文字和字幕的场景。
+它非常适合处理英语听力材料、课程录音、口语练习、试卷听力录音等需要深度数字化整理的场景。
 
-## 功能特点
+---
 
-- 网页上传音频，服务端本地保存文件。
-- 调用火山引擎 ASR 识别音频内容。
-- 自动生成 `.txt`、`.srt`、`.vtt`、`.json` 和可播放的字幕网页。
-- 首页使用 Bootstrap 5 构建，支持历史记录、服务商选择、密钥输入、进度状态和服务商接入指引。
-- 字幕网页使用自定义 Bootstrap 播放器，支持置顶播放控制、进度拖动、字幕跳转、3 秒快进/后退、播放速度切换和字幕显示开关。
-- 使用 SHA256 检测重复音频，避免重复上传和重复识别。
-- 可选择强制重新识别，忽略已有缓存结果。
-- 左侧历史列表可查看、打开和删除已识别文件。
-- 不依赖 COS，音频和识别结果都保存在当前服务器。
-- 无第三方 Python 依赖，部署简单。
+## 🏗️ 系统架构与设计
 
-## 工作流程
+### 1. 架构拓扑图
 
-```text
-Browser -> POST /api/upload -> data/audio/<record_id>/
-Browser -> POST /api/recognize
-Server  -> 计算 SHA256，并保存 data/hashes/<sha256>.json
-Server  -> 提交公开可访问的音频 URL 到火山引擎
-Browser -> POST /api/status
-Server  -> 写入 data/results/<record_id>/
-Browser -> 打开 /results/<record_id>/<title>_字幕跳转.html
+以下为系统的核心数据流向与组件交互拓扑图：
+
+```mermaid
+graph TD
+    %% 前端层
+    subgraph Frontend [前端 Web 界面]
+        UI[index.html / app.js] -->|1. 上传音频 / 触发转写| API[HTTP API]
+        UI -->|5. 预览结果| SubHTML[字幕跳转网页]
+    end
+
+    %% 控制与路由层
+    subgraph Control [控制与路由层]
+        API -->|路由分发| Routes[routes.py]
+        Routes -->|业务编排| Service[service.py]
+    end
+
+    %% 服务适配器层
+    subgraph Adapters [ASR 云端服务适配器]
+        Service -->|动态调用| Providers[providers.py]
+        Service -->|火山转写| Volc[volcengine.py]
+        Service -->|腾讯云转写| Tencent[tencent_asr.py]
+        Service -->|阿里云 Paraformer| AliFun[aliyun_fun.py]
+        Service -->|阿里云 Qwen 大模型| AliQwen[aliyun_qwen.py]
+    end
+
+    %% 存储与生成层
+    subgraph Storage [数据持久化与生成层]
+        Service -->|读取/写入数据| StorageMgr[storage.py]
+        StorageMgr -->|物理文件IO| Disk[(data/ 目录)]
+        Service -->|生成 SRT/VTT/TXT| Subtitles[subtitles.py]
+        Service -->|组装网页模板| SubTmpl[subtitle_template.py]
+        SubTmpl -->|读取资源| TmplSrc[(templates/ result.html/css/js)]
+    end
+
+    %% 样式微调
+    classDef highlight fill:#e1f5fe,stroke:#0288d1,stroke-width:2px;
+    class UI,SubHTML,Service,Disk highlight;
 ```
 
-生成的字幕网页会从 `/media/audio/...` 读取音频，因此可以避免 COS 权限、CORS、签名 URL 过期和 Range 请求等问题。
+### 2. 核心文件架构说明
 
-## 项目结构
+项目代码采用**高内聚、低耦合**的模块化结构进行构建，各模块分工明确：
 
-```text
-listening-scribe/
-├── app.py               # 服务入口
-├── Dockerfile           # Docker 镜像配置
-├── docker-compose.yml   # 单容器部署配置
-├── config.example.env   # 环境变量示例
-├── requirements.txt     # 依赖说明
-├── asr_app/
-│   ├── config.py        # 环境变量和运行目录
-│   ├── http_utils.py    # JSON、重定向和文件响应
-│   ├── providers.py     # 服务商入口和支持状态
-│   ├── routes.py        # HTTP 路由
-│   ├── service.py       # 上传、缓存、任务和结果编排
-│   ├── storage.py       # 本地文件、SHA256 索引和元数据
-│   ├── subtitles.py     # TXT/SRT/VTT/HTML 生成
-│   ├── utils.py         # 路径和文件名工具
-│   └── volcengine.py    # 火山引擎提交和查询客户端
-├── public/
-│   ├── index.html       # Web 界面
-│   └── assets/
-│       ├── css/app.css
-│       ├── img/
-│       └── js/
-└── data/                # 运行时数据，自动创建，不提交到 Git
-```
+| 模块/文件 | 核心职责 | 技术实现与设计要点 |
+| --- | --- | --- |
+| [**`app.py`**](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/app.py) | 服务入口启动器 | 基于 Python 标准库 `http.server`，提供静态资源托底服务、API 路由派发及 `--reload` 自动重载热更新功能。 |
+| [**`asr_app/config.py`**](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/asr_app/config.py) | 全局配置与环境初始化 | 负责加载 `.env` 配置文件，管理运行目录（如 `data/`），提供全局的环境变量转换安全方法。 |
+| [**`asr_app/routes.py`**](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/asr_app/routes.py) | HTTP 路由控制中心 | 解析 HTTP 请求方法、路径与查询参数，分发至 `service.py` 对应的方法，对跨域（CORS）提供高兼容性支持。 |
+| [**`asr_app/http_utils.py`**](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/asr_app/http_utils.py) | HTTP 工具集 | 封装了 JSON 响应规范、重定向机制、大文件断点续传（Range 请求）及音频流直通托底机制。 |
+| [**`asr_app/storage.py`**](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/asr_app/storage.py) | 数据持久化与元数据库 | 维护 `manifest.json` 索引，实现对音频的 SHA256 唯一性校验哈希索引，避免重复上传与冗余计费。 |
+| [**`asr_app/service.py`**](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/asr_app/service.py) | 核心业务流编排中心 | 协调“上传 ➔ 去重校验 ➔ 云端任务分发 ➔ 状态轮询/同步响应 ➔ 字幕生成 ➔ 历史管理”的完整状态机逻辑。 |
+| [**`asr_app/providers.py`**](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/asr_app/providers.py) | ASR 服务商元数据中心 | 统一声明五大转写服务的配置约束（凭证字段、引导信息、支持特性等），动态输出给前端界面渲染。 |
+| [**`asr_app/volcengine.py`**](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/asr_app/volcengine.py) | 火山引擎 ASR 客户端 | 封装火山引擎“提交录音任务 (submit) + 轮询查询 (query)”的 HTTP 交互逻辑。 |
+| [**`asr_app/tencent_asr.py`**](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/asr_app/tencent_asr.py) | 腾讯云 ASR 客户端 | 基于腾讯云 API 3.0 签名机制，原生实现 `CreateRecTask` 和 `DescribeTaskStatus`，免除第三方 SDK 依赖。 |
+| [**`asr_app/aliyun_fun.py`**](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/asr_app/aliyun_fun.py) | 阿里云百炼 Paraformer 客户端 | 原生对接 DashScope REST API 的录音文件转写服务，支持 Paraformer-v2 和 Fun-ASR 模型的多语言句级时间戳。 |
+| [**`asr_app/aliyun_qwen.py`**](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/asr_app/aliyun_qwen.py) | 阿里云百炼 Qwen-ASR 客户端 | 对接千问语音大模型（Qwen3-ASR-Flash），使用同步调用接口，提供极速响应和卓越的语义纠错能力（仅生成纯文本）。 |
+| [**`asr_app/subtitles.py`**](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/asr_app/subtitles.py) | 字幕格式编译器 | 解析各云端返回的标准化 Cues 列表，编译输出标准的 `.txt` 文本、`.srt` 字幕、`.vtt` 字幕及原始 `.json` 结构。 |
+| [**`asr_app/subtitle_template.py`**](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/asr_app/subtitle_template.py) | 字幕交互网页渲染引擎 | 负责将 `templates/` 下的网页源码装配动态数据，通过 `TEMPLATE_VERSION` 机制实现样式秒级重构。 |
+| [**`asr_app/templates/`**](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/asr_app/templates) | 交互式字幕播放器前端模板 | 采用极简、高端的 CSS 变量设计系统。包含置顶控制栏、高精度毫秒级跳进度、音画同步的高亮聚焦字幕行等。 |
 
-## 环境要求
+---
 
-- Python 3.12 或更高版本
-- 一个火山引擎语音识别 API Key，可写入 `.env`，也可在私有 Web 界面中输入
-- 一个公网可访问的域名或地址
+## 🌟 功能特点
 
-本项目的 `requirements.txt` 中没有第三方 Python 依赖。
+1. **五大 ASR 模型全集成**：不仅预留入口，目前已**全量且深度接入**火山引擎、阿里云（Paraformer/Qwen大模型）、腾讯云，提供完整的云端转写能力。
+2. **极简而奢华的设计美学**：采用现代感极强的深灰与淡雅米色搭配，卡片式布局，微交互动画，支持完全单页式交互（100vh 无溢出滚动条）。
+3. **双重凭证安全机制**：
+   * 支持后端 `.env` 全局配置，对访客隐藏凭证细节；
+   * 支持前端 Web 界面临时输入 API Key（可选择记住到本地 Cookie），**前端输入具有绝对优先权**，完美避免了环境变量覆盖问题。
+4. **精细的对齐系统**：表单组件水平文字基准线（Baseline）经过严密核准，高度统一。
+5. **智能 SHA256 缓存去重**：自动计算音频哈希，检测到已转写音频时**秒级命中缓存**，零重复上传，零重复扣费。支持一键勾选“强制重新识别”。
+6. **无 COS 等对象存储依赖**：音频与识别结果完全寄宿在您自己的服务器上，完美规避了跨域（CORS）、签名 URL 过期和 Range 拖动卡顿问题。
+7. **极轻量自托管**：全项目基于 Python 纯原生标准库构建，**无任何第三方 Python 包依赖**，极易部署。
 
-## 配置
+---
 
-复制环境变量示例：
+## 🛠️ 部署指南
+
+### 1. 克隆项目并配置环境变量
 
 ```bash
 cp config.example.env .env
 ```
 
-填写 `.env`：
+编辑 `.env` 文件，填入您的密钥和公网访问域名：
 
-```bash
+```env
+# 火山引擎 (Seed-ASR)
 VOLCENGINE_API_KEY=your_volcengine_api_key
 VOLCENGINE_RESOURCE_ID=volc.seedasr.auc
 VOLCENGINE_MODEL_VERSION=400
 
-ALIYUN_ACCESS_KEY_ID=
-ALIYUN_ACCESS_KEY_SECRET=
-ALIYUN_APP_KEY=
-ALIYUN_REGION=cn-shanghai
+# 阿里云百炼 (DashScope API Key)
+DASHSCOPE_API_KEY=your_dashscope_api_key
 
-TENCENT_SECRET_ID=
-TENCENT_SECRET_KEY=
+# 腾讯云 ASR
+TENCENT_SECRET_ID=your_tencent_secret_id
+TENCENT_SECRET_KEY=your_tencent_secret_key
 TENCENT_REGION=ap-guangzhou
 
+# 服务端配置
 PORT=8789
-PUBLIC_BASE_URL=https://asr.example.com
+PUBLIC_BASE_URL=https://asr.yourdomain.com
 DATA_DIR=data
 MAX_UPLOAD_MB=500
 ALLOWED_ORIGIN=*
 ```
 
-关键配置说明：
+> ⚠️ **重要**：因语音识别服务（如火山、阿里、腾讯）均采用“异步回调或轮询拉取音频”的机制，您必须配置 `PUBLIC_BASE_URL` 为外部云端服务能够正常访问的**公网域名或外网 IP**。
 
-- `VOLCENGINE_API_KEY`：火山引擎语音识别 API Key。私有部署时可以留空，改由前端输入 Key；公网部署建议写入 `.env`。
-- `PUBLIC_BASE_URL`：外网可访问的服务地址，火山引擎需要通过它拉取音频。
-- `DATA_DIR`：音频、任务和识别结果的保存目录。
-- `MAX_UPLOAD_MB`：允许上传的最大音频体积。
-- `ALLOWED_ORIGIN`：接口跨域来源。
+### 2. 运行方式
 
-首页支持选择服务商、输入密钥，并通过右侧帮助按钮以 Bootstrap toast 展示接入指引。当前识别流程已接入火山引擎；阿里云、腾讯云入口已在界面和接口层预留，但识别适配器尚未实现。若 `.env` 中已配置 `VOLCENGINE_API_KEY`，后端优先使用 `.env`，前端 Key 可以留空。若 `.env` 未配置，则前端输入的 Key 会随识别请求和轮询请求发送给后端。勾选“记住到浏览器 Cookie”后，密钥会保存在当前浏览器 Cookie 中。
-
-## 服务商与模型支持
-
-目前系统已完整接入以下五种 ASR 转写服务，均支持通过后端 `.env` 配置或前端 Web 界面临时输入凭证（Web 端输入具有绝对优先权）：
-
-| 服务商 | 适用产品/模型 | 当前状态 | 凭证类型 | 音频拉取要求 | 字幕网页支持 | 特性说明 |
-| --- | --- | --- | --- | --- | --- | --- |
-| **火山引擎** | 录音文件识别 | **已接入** | API Key | 需要公网可访问的音频 URL | **支持** (含时间戳) | 通用中英文，识别精度高 |
-| **阿里云百炼** | Fun-ASR Paraformer | **已接入** | DashScope API Key | 需要公网可访问的音频 URL | **支持** (含时间戳) | 句级时间戳，性价比极高，多语言支持 |
-| **阿里云百炼** | Paraformer-v2 | ****已接入**** | DashScope API Key | 需要公网可访问的音频 URL | **支持** (含时间戳) | 针对普通话深度优化，超低计费，性价比首选 |
-| **阿里云百炼** | Qwen3-ASR-Flash | **已接入** | DashScope API Key | 需要公网可访问的音频 URL | 暂无 (返回纯文本) | 通义千问大模型，同步瞬间响应，极强语义纠错能力 |
-| **腾讯云** | 录音文件识别 | **已接入** | SecretId / SecretKey | 需要公网可访问的音频 URL | **支持** (含时间戳) | 支持中文普通话及多种方言，双凭证支持 |
-
-服务商入口由 [providers.py](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/asr_app/providers.py) 统一维护，并动态提供给前端渲染。所有服务商均支持密钥保存到浏览器 Cookie，且均通过了完整的转写测试。
-
-## 本地运行
+#### A. 本地/物理机运行
+仅需 Python 3.12 或更高版本，无需安装任何 pip 依赖：
 
 ```bash
+# 启动生产服务
 python3 app.py
-```
 
-开发时可以使用自动重载模式：
-
-```bash
+# 启动开发模式（支持代码热重载，静态资源 no-store 缓存）
 python3 app.py --reload
 ```
 
-在该模式下，修改 `app.py` 或 `asr_app/*.py` 后服务会自动重启；修改 `public/` 里的 HTML、CSS、JS 后刷新浏览器即可生效，不需要重启 Python 应用。自动重载模式会对静态文件添加 `Cache-Control: no-store`，减少浏览器缓存干扰。
-
-打开：
-
-```text
-http://127.0.0.1:8789/
-```
-
-本地上传和播放可以直接工作。真实识别需要 `PUBLIC_BASE_URL` 指向火山引擎可以访问的公网地址。
-
-## Docker 部署
+#### B. Docker 一键部署
+项目自带极简的 Alpine-Python 镜像和 Docker Compose 编排：
 
 ```bash
-cp config.example.env .env
 docker compose up -d --build
 ```
 
-服务默认监听：
+---
 
-```text
-http://127.0.0.1:8789/
-```
+## ⚙️ Nginx 反向代理配置建议
 
-## 服务器部署建议
-
-推荐架构：
-
-```text
-Nginx 80/443 -> http://127.0.0.1:8789 -> Listening Scribe
-```
-
-Nginx 示例：
+推荐通过 Nginx 提供 HTTPS 安全通道，以下是生产级 Nginx 配置示例：
 
 ```nginx
 server {
     listen 80;
-    server_name asr.example.com;
+    listen 443 ssl http2;
+    server_name asr.yourdomain.com;
 
+    # SSL 证书配置
+    ssl_certificate /path/to/fullchain.pem;
+    ssl_certificate_key /path/to/privkey.pem;
+    
+    # 限制上传音频最大体积
     client_max_body_size 500m;
 
     location / {
         proxy_pass http://127.0.0.1:8789;
         proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_set_header X-Forwarded-Host $host;
+        
+        # 禁用缓冲以保证上传进度条实时显示
+        proxy_buffering off;
     }
 }
 ```
 
-请确保 `.env` 中的 `PUBLIC_BASE_URL` 与外部访问域名一致。
+---
 
-## 输出文件
+## 💾 输出文件清单
 
-识别完成后，每条记录会生成：
+成功转写后，对应记录的物理目录下（默认 `data/results/<record_id>/`）将输出以下文件：
 
-- `transcript/<title>.txt`
-- `subtitles/<title>.srt`
-- `subtitles/<title>.vtt`
-- `raw/<title>.volcengine.json`
-- `<title>_字幕跳转.html`
-- `manifest.json`
+```text
+├── <filename>                    # 原始音频文件
+├── transcript/
+│   └── <filename>.txt            # 纯文本转写内容
+├── subtitles/
+│   ├── <filename>.srt            # 行业标准 SRT 字幕文件
+│   └── <filename>.vtt            # 网页原生 WebVTT 字幕文件
+├── raw/
+│   └── <filename>.<provider>.json # 云端 ASR 原始最详 JSON 响应
+├── <filename>_字幕跳转.html        # 高交互的音画同步播放字幕跳转页
+└── manifest.json                 # 转写记录元数据配置
+```
 
-运行时数据默认保存在 `data/`，该目录已被 `.gitignore` 排除。
+---
 
-## API
+## 🔒 安全说明
 
-- `GET /api/providers`
-- `POST /api/upload?filename=...&content_type=...&sha256=...`
-- `POST /api/recognize`
-- `GET /api/status?task_id=...`
-- `POST /api/status`
-- `GET /api/results`
-- `POST /api/delete`
-- `GET /media/audio/<record_id>/<filename>`
-- `GET /results/<record_id>/`
+1. **凭证隔离**：请勿将包含真实密钥的 `.env` 上传至任何公开 Git 仓库。
+2. **私有云保障**：若部署在完全开放的公网环境，强烈建议在 Nginx 层增加基本认证（Basic Auth）或防火墙限制，以保护您的音频资产与云账户额度。
+3. **数据独立性**：`data/` 目录中包含全部音频 and 生成网页，已默认配置在 `.gitignore` 中，绝对不会发生数据意外泄漏。
 
-## 安全提示
+---
 
-- 不要提交 `.env`，其中包含 API Key。
-- 不要把 `data/` 作为公开仓库内容上传，里面可能包含用户音频和识别结果。
-- 如果部署到公网，建议通过 Nginx、HTTPS、防火墙和访问控制保护服务。
+## 📄 开源协议
 
-## License
-
-This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
+本项目采用 [MIT License](LICENSE) 协议开源。

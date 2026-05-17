@@ -1,224 +1,206 @@
 # Listening Scribe
 
-> A self-hosted listening transcription tool that turns audio recordings into text, subtitles, and a seekable playback page.
+> A self-hosted, one-stop audio transcription solution that turns audio recordings into text, subtitles, and a highly interactive playback page with synchronized subtitle navigation.
 
 English | [中文](README.md)
 
-Listening Scribe is a server-hosted ASR tool for listening materials. Users upload audio through a web interface, the server submits the audio to Volcengine ASR, and the app generates plain text, SRT, VTT, raw JSON, and an HTML page with synchronized subtitle navigation.
+Listening Scribe is a self-hosted ASR tool tailored for learning materials (English exercises, lecture recordings, oral practices, exam tracks, etc.). Users upload audio through a clean, modern web UI, the server schedules cloud ASR providers, and automatically generates plain text, SRT, VTT, raw JSON, and a seekable HTML page.
 
-It is designed for English listening exercises, class recordings, speaking-practice audio, exam listening tracks, and similar learning materials that need to be converted into readable text and subtitles.
+---
 
-## Features
+## 🏗️ System Architecture & Design
 
-- Upload audio from a web page and store files locally on the server.
-- Submit audio to Volcengine ASR for speech recognition.
-- Generate `.txt`, `.srt`, `.vtt`, `.json`, and a playable subtitle HTML page.
-- Bootstrap 5 web UI with history, provider selection, credential input, progress status, and provider guide help.
-- Custom Bootstrap subtitle player with sticky playback controls, seek bar, cue navigation, 3-second skip controls, playback-speed selection, and transcript visibility toggle.
-- SHA256-based duplicate detection to avoid repeated uploads and repeated recognition.
-- Optional force-recognition mode to ignore cached results.
-- History sidebar for opening and deleting recognized files.
-- No COS dependency. Audio and results are served from the same server.
-- No third-party Python dependency.
+### 1. Architecture Flowchart
 
-## Flow
+Below is the flowchart representing the core data flow and module interactions:
 
-```text
-Browser -> POST /api/upload -> data/audio/<record_id>/
-Browser -> POST /api/recognize
-Server  -> computes SHA256 and stores data/hashes/<sha256>.json
-Server  -> submits a publicly reachable audio URL to Volcengine
-Browser -> POST /api/status
-Server  -> writes data/results/<record_id>/
-Browser -> opens /results/<record_id>/<title>_字幕跳转.html
+```mermaid
+graph TD
+    %% Frontend Layer
+    subgraph Frontend [Frontend Web UI]
+        UI[index.html / app.js] -->|1. Upload Audio / Trigger ASR| API[HTTP API]
+        UI -->|5. Preview Results| SubHTML[Seekable Subtitle Page]
+    end
+
+    %% Routing Layer
+    subgraph Control [Routing & Orchestration]
+        API -->|Route dispatch| Routes[routes.py]
+        Routes -->|Business orchestration| Service[service.py]
+    end
+
+    %% Providers Layer
+    subgraph Adapters [ASR Cloud Service Adapters]
+        Service -->|Dynamic call| Providers[providers.py]
+        Service -->|Volcengine ASR| Volc[volcengine.py]
+        Service -->|Tencent Cloud ASR| Tencent[tencent_asr.py]
+        Service -->|Aliyun Paraformer| AliFun[aliyun_fun.py]
+        Service -->|Aliyun Qwen Voice LLM| AliQwen[aliyun_qwen.py]
+    end
+
+    %% Storage & Output Layer
+    subgraph Storage [Data Persistence & Compilation]
+        Service -->|Read/Write Data| StorageMgr[storage.py]
+        StorageMgr -->|Physical file IO| Disk[(data/ directory)]
+        Service -->|Compile SRT/VTT/TXT| Subtitles[subtitles.py]
+        Service -->|Assemble HTML Template| SubTmpl[subtitle_template.py]
+        SubTmpl -->|Read template assets| TmplSrc[(templates/ result.html/css/js)]
+    end
+
+    %% Styling
+    classDef highlight fill:#e1f5fe,stroke:#0288d1,stroke-width:2px;
+    class UI,SubHTML,Service,Disk highlight;
 ```
 
-The generated subtitle page reads audio from `/media/audio/...`, which avoids COS ACL, CORS, signed URL expiration, and Range request issues.
+### 2. Core Modules Architecture
 
-## Project Structure
+The codebase is built on a highly modular, decoupled structure:
 
-```text
-listening-scribe/
-├── app.py               # Server entrypoint
-├── Dockerfile           # Docker image definition
-├── docker-compose.yml   # Single-container deployment
-├── config.example.env   # Environment variable template
-├── requirements.txt     # Dependency notes
-├── asr_app/
-│   ├── config.py        # Environment and runtime paths
-│   ├── http_utils.py    # JSON, redirect, and file responses
-│   ├── providers.py     # Provider catalog and support status
-│   ├── routes.py        # HTTP routing
-│   ├── service.py       # Upload, cache, task, and result orchestration
-│   ├── storage.py       # Local files, SHA256 index, and metadata
-│   ├── subtitles.py     # TXT/SRT/VTT/HTML generation
-│   ├── utils.py         # Path and filename helpers
-│   └── volcengine.py    # Volcengine submit/query client
-├── public/
-│   ├── index.html       # Web UI
-│   └── assets/
-│       ├── css/app.css
-│       ├── img/
-│       └── js/
-└── data/                # Runtime data, auto-created and ignored by Git
-```
+| Module/File | Responsibility | Technical Highlights & Design |
+| --- | --- | --- |
+| [**`app.py`**](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/app.py) | Server Entrypoint | Based on Python's built-in `http.server`. Supports static assets routing, API dispatch, and a development `--reload` mode. |
+| [**`asr_app/config.py`**](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/asr_app/config.py) | Environment Setup | Loads the `.env` configuration file, initializes the `data/` data directories, and provides clean environment utilities. |
+| [**`asr_app/routes.py`**](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/asr_app/routes.py) | HTTP Router | Parses HTTP request headers, paths, and query arguments, forwarding calls to `service.py` with robust CORS handling. |
+| [**`asr_app/http_utils.py`**](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/asr_app/http_utils.py) | HTTP Utilities | Encapsulates standardized JSON responses, redirection schemes, Range requests (for audio dragging), and audio stream piping. |
+| [**`asr_app/storage.py`**](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/asr_app/storage.py) | Persistence & Metadata | Manages `manifest.json` indexing and computes SHA256 hashes to map uploaded audio files, preventing duplicate charging. |
+| [**`asr_app/service.py`**](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/asr_app/service.py) | Business Orchestration | Orchestrates the entire transcription lifecycle: Upload ➔ Hash Deduplication ➔ Task Submission ➔ Polling/Sync ➔ Compilation ➔ Deletion. |
+| [**`asr_app/providers.py`**](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/asr_app/providers.py) | Providers Catalog | Declares the properties, guidelines, credential requirements, and support status of the five integrated ASR services. |
+| [**`asr_app/volcengine.py`**](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/asr_app/volcengine.py) | Volcengine Client | Implements the submit-and-poll lifecycle for Volcengine ASR. |
+| [**`asr_app/tencent_asr.py`**](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/asr_app/tencent_asr.py) | Tencent Cloud Client | Built with native Tencent Cloud API 3.0 signing mechanisms (`CreateRecTask` / `DescribeTaskStatus`), eliminating SDK overhead. |
+| [**`asr_app/aliyun_fun.py`**](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/asr_app/aliyun_fun.py) | Aliyun Paraformer Client | Integrates DashScope REST API for Paraformer-v2 and Fun-ASR models with multilingual sentence-level timestamp extraction. |
+| [**`asr_app/aliyun_qwen.py`**](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/asr_app/aliyun_qwen.py) | Aliyun Qwen Client | Integrates Aliyun's Qwen3-ASR-Flash voice LLM. Returns synchronous, highly accurate text transcripts without polling. |
+| [**`asr_app/subtitles.py`**](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/asr_app/subtitles.py) | Subtitle Compiler | Parses the standardized cues and compiles them into `.txt`, `.srt`, `.vtt`, and raw `.json` formatted files. |
+| [**`asr_app/subtitle_template.py`**](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/asr_app/subtitle_template.py) | Web Page Compiler | Hydrates static template pages with dynamic parameters, utilizing `TEMPLATE_VERSION` caching to manage immediate cache invalidation. |
+| [**`asr_app/templates/`**](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/asr_app/templates) | Player Templates | Frontend templates (HTML/CSS/JS) featuring custom control panels, precise seek mechanisms, and high-contrast synchronizations. |
 
-## Requirements
+---
 
-- Python 3.12 or later
-- A Volcengine ASR API key, configured in `.env` or entered in a private web UI
-- A public URL or domain that Volcengine can access
+## 🌟 Key Features
 
-This project has no third-party Python dependency in `requirements.txt`.
+1. **Full Support for 5 ASR Providers**: Deeply integrates Volcengine, Tencent Cloud, Aliyun Paraformer-v2, Fun-ASR, and Qwen-ASR.
+2. **Premium Design Language**: Dark slate and light cream palette, responsive card-based designs, tactile micro-interactions, and a sleek single-page 100vh setup.
+3. **Dual Credential Security**:
+   * Supports server-side `.env` configuration to keep credentials completely hidden from clients.
+   * Supports frontend temporary inputs (with "Remember to cookie" options). **Frontend inputs carry absolute priority**, avoiding env-key overrides.
+4. **Flawless Spacing & Alignments**: Perfectly calibrated baseline alignments for multi-checkbox form controls.
+5. **SHA256-Based Smart Deduplication**: Computes audio file hashes to check against existing manifests, yielding **instant cache hits**, zero repeated uploads, and zero repeated cloud costs.
+6. **No Cloud Object Storage (COS) Dependency**: Audio and transcription files are fully hosted on the local server, preventing CORS limits, expired links, and Range requests dragging issues.
+7. **Ultra-Lightweight**: Built on native Python standard libraries with **absolutely zero third-party Python dependencies**.
 
-## Configuration
+---
 
-Copy the example environment file:
+## 🛠️ Getting Started
+
+### 1. Configure Environment
 
 ```bash
 cp config.example.env .env
 ```
 
-Fill `.env`:
+Edit your `.env` to configure your keys and the public base URL:
 
-```bash
+```env
+# Volcengine (Seed-ASR)
 VOLCENGINE_API_KEY=your_volcengine_api_key
 VOLCENGINE_RESOURCE_ID=volc.seedasr.auc
 VOLCENGINE_MODEL_VERSION=400
 
-# Aliyun DashScope (Paraformer-v2 / Fun-ASR / Qwen-ASR)
-DASHSCOPE_API_KEY=
+# Aliyun DashScope (DashScope API Key)
+DASHSCOPE_API_KEY=your_dashscope_api_key
 
 # Tencent Cloud ASR
-TENCENT_SECRET_ID=
-TENCENT_SECRET_KEY=
+TENCENT_SECRET_ID=your_tencent_secret_id
+TENCENT_SECRET_KEY=your_tencent_secret_key
 TENCENT_REGION=ap-guangzhou
 
+# Server Configurations
 PORT=8789
-PUBLIC_BASE_URL=https://asr.example.com
+PUBLIC_BASE_URL=https://asr.yourdomain.com
 DATA_DIR=data
 MAX_UPLOAD_MB=500
 ALLOWED_ORIGIN=*
 ```
 
-Key settings:
+> ⚠️ **Important**: Because ASR platforms pull audio asynchronously via URLs, `PUBLIC_BASE_URL` must match a **public domain or IP** pointing to your server that cloud engines can access.
 
-- `VOLCENGINE_API_KEY`: Volcengine ASR API key. Private deployments may leave this empty and enter the key in the web UI; public deployments should keep it in `.env`.
-- `PUBLIC_BASE_URL`: Public service URL used by Volcengine to fetch the uploaded audio.
-- `DATA_DIR`: Directory for audio, tasks, and generated results.
-- `MAX_UPLOAD_MB`: Maximum accepted upload size.
-- `ALLOWED_ORIGIN`: Allowed CORS origin.
+### 2. Run the App
 
-The home page supports provider selection, credential input, and a Bootstrap toast guide from the help button beside the provider picker. The recognition flow fully supports Volcengine, Tencent Cloud ASR, Aliyun Paraformer, Aliyun Fun-ASR, and Aliyun Qwen-ASR. If the respective backend environment variables are configured in `.env`, the backend uses them first and the frontend key can be left empty. If not configured, the frontend key provided by the user is sent with recognition and polling requests. When "remember credentials" is enabled, credentials are stored securely in the browser cookies.
-
-## Providers and Models
-
-Currently, the system has fully integrated the following five ASR transcription services:
-
-| Provider | Applicable Models/Products | Current Status | Credentials Type | Audio Pull Requirement | Subtitle Page Support | Features |
-| --- | --- | --- | --- | --- | --- | --- |
-| **Volcengine** | Audio file recognition | **Supported** | API Key | Requires publicly reachable audio URL | **Yes** (with timestamps) | General English/Chinese, highly accurate |
-| **Aliyun Bailian** | Fun-ASR Paraformer | **Supported** | DashScope API Key | Requires publicly reachable audio URL | **Yes** (with timestamps) | Sentence-level timestamps, highly cost-effective |
-| **Aliyun Bailian** | Paraformer-v2 | **Supported** | DashScope API Key | Requires publicly reachable audio URL | **Yes** (with timestamps) | Optimized for Chinese, low latency and cost |
-| **Aliyun Bailian** | Qwen3-ASR-Flash | **Supported** | DashScope API Key | Requires publicly reachable audio URL | No (Plain text only) | Large voice model, synchronous instant response |
-| **Tencent Cloud** | Audio file recognition | **Supported** | SecretId / SecretKey | Requires publicly reachable audio URL | **Yes** (with timestamps) | High accuracy for Chinese and dialects |
-
-Provider entries are maintained dynamically in [providers.py](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/asr_app/providers.py). All five providers support cookie persistence and are fully tested and functional.
-
-## Local Run
+#### A. Local Physical Host
+Requires Python 3.12 or newer. No pip dependency installation required.
 
 ```bash
+# Production Run
 python3 app.py
-```
 
-For development, use auto-reload mode:
-
-```bash
+# Development Mode (with hot reloading and Cache-Control: no-store disabled assets caching)
 python3 app.py --reload
 ```
 
-In this mode, changes to `app.py` or `asr_app/*.py` automatically restart the server. Changes under `public/` only require a browser refresh. Auto-reload mode also adds `Cache-Control: no-store` to static files to reduce browser-cache confusion.
-
-Open:
-
-```text
-http://127.0.0.1:8789/
-```
-
-Local upload and playback work immediately. Real recognition requires `PUBLIC_BASE_URL` to point to a public address reachable by Volcengine.
-
-## Docker Deployment
+#### B. Docker Compose Deployment
+Run in a single command using our lightweight Alpine-Python stack:
 
 ```bash
-cp config.example.env .env
 docker compose up -d --build
 ```
 
-The service listens on:
+---
 
-```text
-http://127.0.0.1:8789/
-```
+## ⚙️ Nginx Reverse Proxy Recommendation
 
-## Server Deployment
-
-Recommended architecture:
-
-```text
-Nginx 80/443 -> http://127.0.0.1:8789 -> Listening Scribe
-```
-
-Example Nginx config:
+We recommend hosting your deployment behind Nginx with SSL enabled:
 
 ```nginx
 server {
     listen 80;
-    server_name asr.example.com;
+    listen 443 ssl http2;
+    server_name asr.yourdomain.com;
 
+    ssl_certificate /path/to/fullchain.pem;
+    ssl_certificate_key /path/to/privkey.pem;
+    
     client_max_body_size 500m;
 
     location / {
         proxy_pass http://127.0.0.1:8789;
         proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_set_header X-Forwarded-Host $host;
+        
+        # Disable buffering to ensure real-time upload progress bars
+        proxy_buffering off;
     }
 }
 ```
 
-Make sure `PUBLIC_BASE_URL` in `.env` matches the public domain.
+---
 
-## Generated Files
+## 💾 Outputs Structure
 
-After recognition, each record generates:
+Upon successful transcription, files are arranged in the `data/results/<record_id>/` directory:
 
-- `transcript/<title>.txt`
-- `subtitles/<title>.srt`
-- `subtitles/<title>.vtt`
-- `raw/<title>.volcengine.json`
-- `<title>_字幕跳转.html`
-- `manifest.json`
+```text
+├── <filename>                    # Original audio file
+├── transcript/
+│   └── <filename>.txt            # Plain text transcript
+├── subtitles/
+│   ├── <filename>.srt            # SRT subtitle file
+│   └── <filename>.vtt            # WebVTT subtitle file
+├── raw/
+│   └── <filename>.<provider>.json # Full raw ASR JSON response
+├── <filename>_字幕跳转.html        # Interactive HTML page with synchronized navigation
+└── manifest.json                 # Transcript record metadata index
+```
 
-Runtime data is stored in `data/` by default. The directory is excluded by `.gitignore`.
+---
 
-## API
+## 🔒 Security Practices
 
-- `GET /api/providers`
-- `POST /api/upload?filename=...&content_type=...&sha256=...`
-- `POST /api/recognize`
-- `GET /api/status?task_id=...`
-- `POST /api/status`
-- `GET /api/results`
-- `POST /api/delete`
-- `GET /media/audio/<record_id>/<filename>`
-- `GET /results/<record_id>/`
+1. **Keep Secrets Hidden**: Never commit your `.env` containing live secrets to a public Git repository.
+2. **Access Control**: For deployments open to the public web, configure Basic Auth in Nginx or firewall limits to prevent unauthorized resource utilization.
+3. **Data Safety**: The local `data/` runtime directories are ignored in `.gitignore`, keeping your uploaded audio assets fully secured.
 
-## Security Notes
+---
 
-- Do not commit `.env`; it contains your API key.
-- Do not publish `data/`; it may contain user audio and recognition results.
-- For public deployment, protect the service with Nginx, HTTPS, firewall rules, and access control as needed.
+## 📄 License
 
-## License
-
-This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
+This project is licensed under the [MIT License](LICENSE).
