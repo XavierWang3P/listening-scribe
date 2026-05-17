@@ -44,7 +44,8 @@ def run_reloader():
         while True:
             if child is None or child.poll() is not None:
                 env_vars = {**os.environ, "ASR_DEV_RELOAD_CHILD": "1", "ASR_NO_CACHE": "1"}
-                child = subprocess.Popen([sys.executable, __file__], env=env_vars)
+                args = [sys.executable, __file__] + [arg for arg in sys.argv[1:] if arg != "--reload"]
+                child = subprocess.Popen(args, env=env_vars)
             time.sleep(.8)
             current = watched_mtimes()
             if current != mtimes:

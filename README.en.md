@@ -153,11 +153,14 @@ ALLOWED_ORIGIN=*
 Requires Python 3.12 or newer. No pip installations required.
 
 ```bash
-# Production Run
+# Production Run (default log level is INFO)
 python3 app.py
 
-# Development Mode (hot reload enabled, static assets browser caching disabled)
-python3 app.py --reload
+# Configure Log Level (supports DEBUG, INFO, WARNING, ERROR etc. can also use --log)
+python3 app.py --log-level DEBUG
+
+# Development Mode with DEBUG logs (hot reload enabled, static assets browser caching disabled)
+python3 app.py --reload --log-level DEBUG
 ```
 
 #### Method B: Docker Deployment

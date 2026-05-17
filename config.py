@@ -53,3 +53,31 @@ def ensure_dirs():
 
 
 ensure_dirs()
+
+
+import logging
+import sys
+
+# ── 日志系统初始化 ──────────────────────────────────────────────────────────
+def setup_logging():
+    log_level_str = "INFO"
+    if "LOG_LEVEL" in os.environ:
+        log_level_str = os.environ["LOG_LEVEL"].upper()
+
+    for i, arg in enumerate(sys.argv):
+        if arg.startswith("--log-level="):
+            log_level_str = arg.split("=", 1)[1].upper()
+        elif arg in ("--log-level", "--log"):
+            if i + 1 < len(sys.argv):
+                log_level_str = sys.argv[i + 1].upper()
+
+    level = getattr(logging, log_level_str, logging.INFO)
+    
+    logging.basicConfig(
+        level=level,
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+        force=True
+    )
+
+setup_logging()

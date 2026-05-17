@@ -153,11 +153,14 @@ ALLOWED_ORIGIN=*
 需要 Python 3.12 或更高版本：
 
 ```bash
-# 启动生产服务
+# 启动生产服务（默认使用 INFO 级别日志）
 python3 app.py
 
-# 开发模式启动（支持修改代码自动重载，静态资源不启用浏览器缓存）
-python3 app.py --reload
+# 设置日志级别（支持 DEBUG, INFO, WARNING, ERROR 等，也可使用 --log）
+python3 app.py --log-level DEBUG
+
+# 开发模式启动并开启 DEBUG 日志（支持修改代码自动重载，静态资源不启用浏览器缓存）
+python3 app.py --reload --log-level DEBUG
 ```
 
 #### 方式 B：Docker 部署

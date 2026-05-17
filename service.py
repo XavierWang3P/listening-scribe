@@ -1,8 +1,11 @@
 import json
+import logging
 import mimetypes
 import time
 import uuid
 from pathlib import Path
+
+logger = logging.getLogger("server_asr.service")
 
 from config import env
 from http_utils import absolute_url
@@ -188,6 +191,7 @@ def upload_audio(environ, query: dict):
     if manifest.exists():
         response_body["cached"] = True
         response_body["manifest"] = refresh_cached_manifest(meta["record_id"])
+    logger.info(f"Audio file uploaded: record_id={meta['record_id']}, duplicate={meta.get('duplicate')}, cached={response_body.get('cached', False)}")
     return response_body
 
 
@@ -212,9 +216,11 @@ def submit_recognition(environ, payload: dict):
     audio_hash = meta["audio_hash"]
     manifest = manifest_path(record_id)
     if manifest.exists() and not force:
+        logger.debug(f"ASR recognition cache hit: record_id={record_id}")
         return {"ok": True, "status": "done", "cached": True, "manifest": refresh_cached_manifest(record_id)}
 
     ensure_provider_supported(provider)
+    logger.info(f"Submitting ASR recognition task: record_id={record_id}, provider={provider}, force={force}")
 
     # ── 检测是否启用云存储上传（COS / OSS），优先使用云存储以支持零内网穿透本地部署 ──
     from cloud_storage import is_cloud_storage_enabled, cos_upload, oss_upload
@@ -342,8 +348,10 @@ def _cleanup_cloud_storage(task: dict):
 def poll_task(task_id: str, payload: dict | None = None):
     path = task_path(task_id)
     if not path.exists():
+        logger.warning(f"Polling failed: task_id={task_id} not found")
         return "404 Not Found", {"ok": False, "error": "task not found"}
     task = read_json_file(path)
+    logger.debug(f"Polling task status: task_id={task_id}, status={task.get('status')}")
 
     if task.get("status") == "done":
         return "200 OK", {"ok": True, "status": "done", "manifest": task.get("manifest")}

@@ -1,4 +1,5 @@
 import json
+import logging
 import mimetypes
 import re
 from urllib import parse
@@ -11,6 +12,7 @@ from utils import normalized_path, safe_relative_path
 
 
 RECORD_RE = r"[0-9]{8}-[0-9]{6}-[a-f0-9]{8}|[a-f0-9]{64}"
+logger = logging.getLogger("server_asr.routes")
 
 
 def handle_results():
@@ -64,6 +66,7 @@ def handle_delete(payload: dict):
 def serve_audio(start_response, environ, path: str):
     match = re.fullmatch(rf"/media/audio/({RECORD_RE})/(.+)", path)
     if not match:
+        logger.warning(f"serve_audio: invalid path format '{path}'")
         return json_response(start_response, "404 Not Found", {"ok": False, "error": "not found"})
     record_id, _ = match.groups()
     meta = get_audio_meta(record_id)
@@ -74,6 +77,7 @@ def serve_audio(start_response, environ, path: str):
 def serve_result(start_response, environ, path: str):
     match = re.fullmatch(rf"/results/({RECORD_RE})(?:/(.*))?", path)
     if not match:
+        logger.warning(f"serve_result: invalid path format '{path}'")
         return json_response(start_response, "404 Not Found", {"ok": False, "error": "not found"})
     record_id, rel = match.groups()
     manifest = manifest_path(record_id)
@@ -81,7 +85,9 @@ def serve_result(start_response, environ, path: str):
         if manifest.exists():
             html_url = read_json_file(manifest).get("urls", {}).get("html")
             if html_url:
+                logger.info(f"serve_result redirect record '{record_id}' -> {html_url}")
                 return redirect_response(start_response, html_url)
+        logger.warning(f"serve_result record '{record_id}' manifest not found")
         return json_response(start_response, "404 Not Found", {"ok": False, "error": "result not found"})
     rel_path = safe_relative_path(rel)
     file_path = result_dir(record_id) / rel_path
@@ -91,9 +97,11 @@ def serve_result(start_response, environ, path: str):
 def serve_public_asset(start_response, environ, path: str):
     match = re.fullmatch(r"/assets/(.+)", path)
     if not match:
+        logger.warning(f"serve_public_asset: invalid format '{path}'")
         return json_response(start_response, "404 Not Found", {"ok": False, "error": "not found"})
     rel_path = safe_relative_path(match.group(1))
     if any(part.startswith(".") for part in rel_path.parts):
+        logger.warning(f"serve_public_asset: dotfile path blocked '{path}'")
         return json_response(start_response, "404 Not Found", {"ok": False, "error": "not found"})
     return file_response(start_response, environ, PUBLIC_DIR / "assets" / rel_path)
 
@@ -103,39 +111,58 @@ def application(environ, start_response):
     path = normalized_path(environ)
     parsed_query = parse.parse_qs(environ.get("QUERY_STRING", ""))
 
+    logger.debug(f"Request: {method} {path} (query: {parsed_query})")
+
     if method == "OPTIONS":
         return bytes_response(start_response, "204 No Content", b"", "text/plain")
     try:
         if path == "/" and method == "GET":
+            logger.info("Serving main index.html page")
             return file_response(start_response, environ, PUBLIC_DIR / "index.html", "text/html; charset=utf-8")
         if path.startswith("/assets/") and method in {"GET", "HEAD"}:
+            logger.debug(f"Serving public asset '{path}'")
             return serve_public_asset(start_response, environ, path)
         if path == "/healthz" and method == "GET":
             return json_response(start_response, "200 OK", {"ok": True})
         if path == "/api/providers" and method == "GET":
+            logger.debug("API hit: /api/providers")
             return json_response(start_response, "200 OK", get_provider_config())
         if path == "/api/upload" and method == "POST":
+            logger.info("API hit: /api/upload")
             status, body = handle_upload(environ, parsed_query)
+            logger.info(f"API upload completed: {status}")
             return json_response(start_response, status, body)
         if path == "/api/recognize" and method == "POST":
+            logger.info("API hit: /api/recognize")
             status, body = handle_recognize(environ, read_json(environ))
+            logger.info(f"API recognize status: {status}")
             return json_response(start_response, status, body)
         if path == "/api/status" and method == "GET":
+            logger.debug("API hit: /api/status (GET)")
             status, body = handle_status(parsed_query)
             return json_response(start_response, status, body)
         if path == "/api/status" and method == "POST":
+            logger.debug("API hit: /api/status (POST)")
             status, body = handle_status(parsed_query, read_json(environ))
             return json_response(start_response, status, body)
         if path == "/api/results" and method == "GET":
+            logger.debug("API hit: /api/results")
             status, body = handle_results()
             return json_response(start_response, status, body)
         if path == "/api/delete" and method == "POST":
+            logger.info("API hit: /api/delete")
             status, body = handle_delete(read_json(environ))
+            logger.info(f"API delete result: {status}")
             return json_response(start_response, status, body)
         if path.startswith("/media/audio/") and method in {"GET", "HEAD"}:
+            logger.debug(f"Serving media audio '{path}'")
             return serve_audio(start_response, environ, path)
         if path.startswith("/results/") and method in {"GET", "HEAD"}:
+            logger.debug(f"Serving ASR result asset '{path}'")
             return serve_result(start_response, environ, path)
+        
+        logger.warning(f"Path not found: {method} {path}")
         return json_response(start_response, "404 Not Found", {"ok": False, "error": "not found"})
     except Exception as exc:
+        logger.error(f"Internal server error in request {method} {path}: {exc}", exc_info=True)
         return json_response(start_response, "500 Internal Server Error", {"ok": False, "error": str(exc)})
