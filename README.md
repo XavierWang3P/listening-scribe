@@ -35,7 +35,7 @@ graph TD
         Service -->|动态调用| Providers[providers.py]
         Service -->|火山转写| Volc[volcengine.py]
         Service -->|腾讯云转写| Tencent[tencent_asr.py]
-        Service -->|阿里云 Paraformer| AliFun[aliyun_fun.py]
+        Service -->|阿里云 Paraformer| AliFun[aliyun_fun_asr.py]
         Service -->|阿里云 Qwen 大模型| AliQwen[aliyun_qwen.py]
     end
 
@@ -68,7 +68,7 @@ graph TD
 | ├── [`providers/providers.py`](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/providers/providers.py) | 服务商元数据声明 | 统一声明五大转写服务的配置约束（凭证字段、引导信息、支持特性等），动态输出给前端界面渲染。 |
 | ├── [`providers/volcengine.py`](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/providers/volcengine.py) | 火山引擎 ASR 客户端 | 封装火山引擎“提交录音任务 (submit) + 轮询查询 (query)”的 HTTP 交互逻辑。 |
 | ├── [`providers/tencent_asr.py`](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/providers/tencent_asr.py) | 腾讯云 ASR 客户端 | 基于腾讯云 API 3.0 签名机制，原生实现 `CreateRecTask` 和 `DescribeTaskStatus`，不依赖第三方 SDK。 |
-| ├── [`providers/aliyun_fun.py`](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/providers/aliyun_fun.py) | 阿里云百炼 Fun-ASR | 原生对接 DashScope REST API 录音文件转写服务，支持 Paraformer-v2 和 Fun-ASR 模型的多语言句级时间戳。 |
+| ├── [`providers/aliyun_fun_asr.py`](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/providers/aliyun_fun_asr.py) | 阿里云百炼 Fun-ASR | 原生对接 DashScope REST API 录音文件转写服务，支持 Paraformer-v2 和 Fun-ASR 模型的多语言句级时间戳。 |
 | ├── [`providers/aliyun_qwen.py`](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/providers/aliyun_qwen.py) | 阿里云百炼 Qwen-ASR | 对接千问语音大模型（Qwen3-ASR-Flash），使用同步调用接口（仅生成纯文本，无时间戳）。 |
 | **`subtitles/`** | **字幕生成与渲染包** | **专门负责字幕数据的序列化及跳转播放页的渲染。** |
 | ├── [`subtitles/subtitles.py`](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/subtitles/subtitles.py) | 字幕格式生成 | 解析各云端返回的标准化 Cues 列表，生成并输出 `.txt` 文本、`.srt` 字幕、`.vtt` 字幕及原始 `.json` 结构。 |

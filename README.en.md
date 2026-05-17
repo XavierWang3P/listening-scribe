@@ -35,7 +35,7 @@ graph TD
         Service -->|Dynamic call| Providers[providers.py]
         Service -->|Volcengine ASR| Volc[volcengine.py]
         Service -->|Tencent Cloud ASR| Tencent[tencent_asr.py]
-        Service -->|Aliyun Paraformer| AliFun[aliyun_fun.py]
+        Service -->|Aliyun Paraformer| AliFun[aliyun_fun_asr.py]
         Service -->|Aliyun Qwen Voice LLM| AliQwen[aliyun_qwen.py]
     end
 
@@ -68,7 +68,7 @@ The codebase is built on a modular structure with clear separation of concerns:
 | ├── [`providers/providers.py`](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/providers/providers.py) | Providers Metadata | Declares the properties, guidelines, credential requirements, and support status of the integrated ASR services. |
 | ├── [`providers/volcengine.py`](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/providers/volcengine.py) | Volcengine Client | Implements the submit-and-poll lifecycle for Volcengine ASR. |
 | ├── [`providers/tencent_asr.py`](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/providers/tencent_asr.py) | Tencent Client | Built with native Tencent Cloud API 3.0 signing mechanisms (`CreateRecTask` / `DescribeTaskStatus`), eliminating SDK overhead. |
-| ├── [`providers/aliyun_fun.py`](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/providers/aliyun_fun.py) | Aliyun Fun-ASR | Integrates DashScope REST API for Paraformer-v2 and Fun-ASR models with multilingual sentence-level timestamp extraction. |
+| ├── [`providers/aliyun_fun_asr.py`](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/providers/aliyun_fun_asr.py) | Aliyun Fun-ASR | Integrates DashScope REST API for Paraformer-v2 and Fun-ASR models with multilingual sentence-level timestamp extraction. |
 | └── [`providers/aliyun_qwen.py`](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/providers/aliyun_qwen.py) | Aliyun Qwen Client | Integrates Aliyun's Qwen3-ASR-Flash voice LLM. Returns synchronous text transcripts without polling (no timestamps). |
 | **`subtitles/`** | **Subtitle Packages** | **Manages data serialization and the interactive HTML player templates.** |
 | ├── [`subtitles/subtitles.py`](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/subtitles/subtitles.py) | Subtitle Generation | Parses the standardized cues and compiles them into `.txt`, `.srt`, `.vtt`, and raw `.json` formatted files. |

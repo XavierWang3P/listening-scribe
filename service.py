@@ -286,7 +286,7 @@ def submit_recognition(environ, payload: dict):
 
     # ── Fun-ASR：异步提交 ──────────────────────────────────────────────────────
     elif provider == "aliyun_fun":
-        from providers.aliyun_fun import fun_submit, FUNASR_MODEL_FUNASR
+        from providers.aliyun_fun_asr import fun_submit, FUNASR_MODEL_FUNASR
         api_key = _get_credential(credentials, "api_key")
         task["credential_source"] = "env" if env("DASHSCOPE_API_KEY") else "frontend"
         provider_task_id = fun_submit(audio_url, api_key=api_key, model=FUNASR_MODEL_FUNASR)
@@ -294,7 +294,7 @@ def submit_recognition(environ, payload: dict):
 
     # ── Paraformer：异步提交（与 Fun-ASR 相同 API，仅 model 不同） ──────────────────
     elif provider == "aliyun_paraformer":
-        from providers.aliyun_fun import fun_submit, FUNASR_MODEL_PARAFORMER
+        from providers.aliyun_fun_asr import fun_submit, FUNASR_MODEL_PARAFORMER
         api_key = _get_credential(credentials, "api_key")
         task["credential_source"] = "env" if env("DASHSCOPE_API_KEY") else "frontend"
         provider_task_id = fun_submit(audio_url, api_key=api_key, model=FUNASR_MODEL_PARAFORMER)
@@ -363,7 +363,7 @@ def poll_task(task_id: str, payload: dict | None = None):
     # ── Fun-ASR / Paraformer ──────────────────────────────────────────────────
     elif provider in {"aliyun_fun", "aliyun_paraformer"}:
 
-        from providers.aliyun_fun import fun_query
+        from providers.aliyun_fun_asr import fun_query
         api_key = _get_credential(credentials, "api_key")
         status, sentences = fun_query(task["provider_task_id"], api_key=api_key)
         if status == "SUCCEEDED":
