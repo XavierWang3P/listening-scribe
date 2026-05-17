@@ -272,7 +272,11 @@ def submit_recognition(environ, payload: dict):
                 task["manifest"] = manifest
             except Exception as exc:
                 task["status"] = "failed"
-                task["error"] = str(exc)
+                err_msg = str(exc)
+                if "The audio is too long" in err_msg:
+                    task["error"] = "阿里通义千问 Qwen-ASR 限制单次识别的音频时长需在 3 分钟以内（文件小于 10MB）。对于较长的音频文件，请在服务商中选择「阿里 Fun-ASR」或「阿里 Paraformer」（它们与 Qwen-ASR 共享相同的 API Key），不仅支持长音频转译，而且能生成带时间戳的完整字幕页面！"
+                else:
+                    task["error"] = err_msg
             finally:
                 _cleanup_cloud_storage(task)
                 write_json(task_path(task_id), task)
