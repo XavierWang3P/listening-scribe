@@ -5,7 +5,7 @@ from urllib import parse
 
 from .config import PUBLIC_DIR, RESULTS_DIR
 from .http_utils import api_error, bytes_response, file_response, json_response, read_json, redirect_response
-from .service import delete_result, poll_task, submit_recognition, upload_audio
+from .service import delete_result, get_provider_config, poll_task, submit_recognition, upload_audio
 from .storage import get_audio_meta, get_audio_path, manifest_path, read_json_file, result_dir
 from .utils import normalized_path, safe_relative_path
 
@@ -46,11 +46,12 @@ def handle_recognize(environ, payload: dict):
     return "200 OK", submit_recognition(environ, payload)
 
 
-def handle_status(query: dict):
-    task_id = (query.get("task_id") or [""])[0]
+def handle_status(query: dict, payload: dict | None = None):
+    payload = payload or {}
+    task_id = str(payload.get("task_id") or (query.get("task_id") or [""])[0])
     if not task_id:
         return api_error("task_id is required")
-    return poll_task(task_id)
+    return poll_task(task_id, payload)
 
 
 def handle_delete(payload: dict):
@@ -111,6 +112,8 @@ def application(environ, start_response):
             return serve_public_asset(start_response, environ, path)
         if path == "/healthz" and method == "GET":
             return json_response(start_response, "200 OK", {"ok": True})
+        if path == "/api/providers" and method == "GET":
+            return json_response(start_response, "200 OK", get_provider_config())
         if path == "/api/upload" and method == "POST":
             status, body = handle_upload(environ, parsed_query)
             return json_response(start_response, status, body)
@@ -119,6 +122,9 @@ def application(environ, start_response):
             return json_response(start_response, status, body)
         if path == "/api/status" and method == "GET":
             status, body = handle_status(parsed_query)
+            return json_response(start_response, status, body)
+        if path == "/api/status" and method == "POST":
+            status, body = handle_status(parsed_query, read_json(environ))
             return json_response(start_response, status, body)
         if path == "/api/results" and method == "GET":
             status, body = handle_results()

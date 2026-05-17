@@ -4,19 +4,26 @@ from pathlib import Path
 from urllib import request
 from urllib.error import HTTPError, URLError
 
-from .config import env, required_env
+from .config import env
 
 
 VOLC_SUBMIT_URL = "https://openspeech.bytedance.com/api/v3/auc/bigmodel/submit"
 VOLC_QUERY_URL = "https://openspeech.bytedance.com/api/v3/auc/bigmodel/query"
 
 
-def volc_headers(task_id: str, logid: str = "", sequence: bool = True) -> dict:
+def resolve_api_key(api_key: str = "") -> str:
+    key = (api_key or "").strip() or env("VOLCENGINE_API_KEY")
+    if not key:
+        raise RuntimeError("Missing Volcengine API Key: configure VOLCENGINE_API_KEY in .env or enter it on the page.")
+    return key
+
+
+def volc_headers(task_id: str, logid: str = "", sequence: bool = True, api_key: str = "") -> dict:
     headers = {
         "Content-Type": "application/json",
         "X-Api-Resource-Id": env("VOLCENGINE_RESOURCE_ID", "volc.seedasr.auc"),
         "X-Api-Request-Id": task_id,
-        "X-Api-Key": required_env("VOLCENGINE_API_KEY"),
+        "X-Api-Key": resolve_api_key(api_key),
     }
     if sequence:
         headers["X-Api-Sequence"] = "-1"
@@ -58,9 +65,9 @@ def volc_payload(audio_url_for_asr: str) -> dict:
     return {"user": {"uid": "server-asr"}, "audio": audio, "request": request_payload}
 
 
-def volc_submit(audio_url_for_asr: str):
+def volc_submit(audio_url_for_asr: str, api_key: str = ""):
     task_id = str(uuid.uuid4())
-    headers, _, _ = post_json(VOLC_SUBMIT_URL, volc_headers(task_id), volc_payload(audio_url_for_asr))
+    headers, _, _ = post_json(VOLC_SUBMIT_URL, volc_headers(task_id, api_key=api_key), volc_payload(audio_url_for_asr))
     status = headers.get("X-Api-Status-Code", "")
     message = headers.get("X-Api-Message", "")
     logid = headers.get("X-Tt-Logid", "")
@@ -69,8 +76,8 @@ def volc_submit(audio_url_for_asr: str):
     return task_id, logid
 
 
-def volc_query(task_id: str, logid: str):
-    headers, parsed, raw = post_json(VOLC_QUERY_URL, volc_headers(task_id, logid, sequence=False), {})
+def volc_query(task_id: str, logid: str, api_key: str = ""):
+    headers, parsed, raw = post_json(VOLC_QUERY_URL, volc_headers(task_id, logid, sequence=False, api_key=api_key), {})
     status = headers.get("X-Api-Status-Code", "")
     message = headers.get("X-Api-Message", "")
     return status, message, parsed, raw

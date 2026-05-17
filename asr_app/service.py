@@ -4,7 +4,9 @@ import time
 import uuid
 from pathlib import Path
 
+from .config import env
 from .http_utils import absolute_url
+from .providers import PROVIDERS, ensure_provider_supported, normalize_provider, provider_catalog
 from .storage import (
     get_audio_meta,
     get_audio_meta_by_hash,
@@ -18,38 +20,75 @@ from .storage import (
     write_json,
     write_text,
 )
-from .subtitles import TEMPLATE_VERSION, extract_cues, make_result_html, make_srt, make_txt, make_vtt
+from .subtitles import (
+    TEMPLATE_VERSION,
+    extract_cues,
+    extract_cues_funasr,
+    extract_cues_tencent,
+    make_result_html,
+    make_srt,
+    make_txt,
+    make_vtt,
+)
 from .utils import clean_name, safe_relative_path
 from .volcengine import volc_query, volc_submit
 
 
-PROCESSING_STATUSES = {"20000001", "20000002"}
+# ── 辅助：Provider 认证参数提取 ──────────────────────────────────────────────
+
+def _get_credential(credentials: dict, *keys: str) -> str:
+    """从 credentials 字典中按优先顺序取第一个非空值。"""
+    for k in keys:
+        v = (credentials.get(k) or "").strip()
+        if v:
+            return v
+    return ""
 
 
-def write_artifacts(task: dict, volc_json: dict):
-    cues = extract_cues(volc_json)
-    if not cues:
-        raise RuntimeError("Volcengine result has no utterance timestamps.")
+# ── 写入识别结果文件 ──────────────────────────────────────────────────────────
+
+def write_artifacts(task: dict, cues: list[dict], raw_data: object = None):
+    """将识别结果写入文件系统并返回 manifest。
+
+    Args:
+        task:     任务信息字典（含 record_id, title 等字段）
+        cues:     标准字幕列表 [{start, end, text}, ...]
+        raw_data: 原始 API 响应（用于保存 raw JSON）
+    """
     record_id = task["record_id"]
     audio_hash = task["audio_hash"]
     title = clean_name(task.get("title") or Path(task.get("filename", "audio")).stem)
+    provider = task.get("provider", "volcengine")
     meta = get_audio_meta(record_id)
     audio_src = meta["audio_url"]
     audio_type = meta.get("content_type") or mimetypes.guess_type(meta["filename"])[0] or "application/octet-stream"
     base = result_dir(record_id)
-    keys = {
-        "raw": ("raw", f"{title}.volcengine.json"),
-        "txt": ("transcript", f"{title}.txt"),
-        "srt": ("subtitles", f"{title}.srt"),
-        "vtt": ("subtitles", f"{title}.vtt"),
-        "html": ("", f"{title}_字幕跳转.html"),
-    }
-    write_json(base / keys["raw"][0] / keys["raw"][1], volc_json)
-    write_text(base / keys["txt"][0] / keys["txt"][1], make_txt(cues))
-    write_text(base / keys["srt"][0] / keys["srt"][1], make_srt(cues))
-    write_text(base / keys["vtt"][0] / keys["vtt"][1], make_vtt(cues))
-    write_text(base / keys["html"][1], make_result_html(title, cues, audio_src, audio_type))
-    urls = {name: result_url(record_id, *[part for part in parts if part]) for name, parts in keys.items()}
+    has_timestamps = bool(cues) and PROVIDERS.get(provider, {}).get("has_timestamps", True)
+
+    # raw JSON（各 provider 格式不同）
+    raw_filename = f"{title}.{provider}.json"
+    raw_dir = "raw"
+    write_json(base / raw_dir / raw_filename, raw_data if raw_data is not None else {})
+    raw_url = result_url(record_id, raw_dir, raw_filename)
+
+    urls: dict[str, str] = {"raw": raw_url}
+
+    # txt 所有 provider 都生成
+    txt_filename = f"{title}.txt"
+    write_text(base / "transcript" / txt_filename, make_txt(cues) if cues else (task.get("plain_text") or "") + "\n")
+    urls["txt"] = result_url(record_id, "transcript", txt_filename)
+
+    if has_timestamps:
+        srt_filename = f"{title}.srt"
+        vtt_filename = f"{title}.vtt"
+        html_filename = f"{title}_字幕跳转.html"
+        write_text(base / "subtitles" / srt_filename, make_srt(cues))
+        write_text(base / "subtitles" / vtt_filename, make_vtt(cues))
+        write_text(base / html_filename, make_result_html(title, cues, audio_src, audio_type))
+        urls["srt"] = result_url(record_id, "subtitles", srt_filename)
+        urls["vtt"] = result_url(record_id, "subtitles", vtt_filename)
+        urls["html"] = result_url(record_id, html_filename)
+
     manifest = {
         "record_id": record_id,
         "audio_hash": audio_hash,
@@ -57,7 +96,9 @@ def write_artifacts(task: dict, volc_json: dict):
         "filename": meta["filename"],
         "audio_url": audio_src,
         "audio_size": meta["size"],
+        "provider": provider,
         "cues": len(cues),
+        "has_timestamps": has_timestamps,
         "urls": urls,
         "template_version": TEMPLATE_VERSION,
         "created_at": int(time.time()),
@@ -65,6 +106,16 @@ def write_artifacts(task: dict, volc_json: dict):
     write_json(manifest_path(record_id), manifest)
     return manifest
 
+
+def write_artifacts_volc(task: dict, volc_json: dict):
+    """兼容旧有火山引擎调用路径的封装。"""
+    cues = extract_cues(volc_json)
+    if not cues:
+        raise RuntimeError("Volcengine result has no utterance timestamps.")
+    return write_artifacts(task, cues, raw_data=volc_json)
+
+
+# ── 缓存刷新 ──────────────────────────────────────────────────────────────────
 
 def result_file_from_url(record_id: str, url: str) -> Path | None:
     prefix = f"/results/{record_id}/"
@@ -86,6 +137,9 @@ def html_current(manifest: dict) -> bool:
 
 def refresh_cached_manifest(record_id: str) -> dict:
     manifest = read_json_file(manifest_path(record_id))
+    # Qwen-ASR（无时间戳）结果无 HTML，无需刷新 HTML
+    if not manifest.get("has_timestamps", True):
+        return manifest
     if html_current(manifest):
         return manifest
 
@@ -93,16 +147,31 @@ def refresh_cached_manifest(record_id: str) -> dict:
     raw_path = result_file_from_url(record_id, raw_url)
     if not raw_path or not raw_path.exists():
         return manifest
-    return write_artifacts(
-        {
-            "record_id": record_id,
-            "audio_hash": manifest["audio_hash"],
-            "title": manifest.get("title") or Path(manifest.get("filename", "audio")).stem,
-            "filename": manifest.get("filename", "audio"),
-        },
-        read_json_file(raw_path),
-    )
 
+    provider = manifest.get("provider", "volcengine")
+    raw_json = read_json_file(raw_path)
+    task_stub = {
+        "record_id": record_id,
+        "audio_hash": manifest["audio_hash"],
+        "title": manifest.get("title") or Path(manifest.get("filename", "audio")).stem,
+        "filename": manifest.get("filename", "audio"),
+        "provider": provider,
+    }
+
+    if provider == "volcengine":
+        cues = extract_cues(raw_json)
+    elif provider == "aliyun_fun":
+        # raw_json 存储的是 sentences 列表
+        cues = extract_cues_funasr(raw_json if isinstance(raw_json, list) else [])
+    elif provider == "tencent":
+        cues = extract_cues_tencent(raw_json if isinstance(raw_json, list) else [])
+    else:
+        return manifest  # 其他 provider 暂不支持重新生成
+
+    return write_artifacts(task_stub, cues, raw_data=raw_json)
+
+
+# ── 上传音频 ──────────────────────────────────────────────────────────────────
 
 def upload_audio(environ, query: dict):
     meta = save_upload(environ, query)
@@ -122,11 +191,16 @@ def upload_audio(environ, query: dict):
     return response_body
 
 
+# ── 提交识别 ──────────────────────────────────────────────────────────────────
+
 def submit_recognition(environ, payload: dict):
     record_id = str(payload.get("record_id") or "")
     audio_hash = str(payload.get("audio_hash") or "").lower()
     title = clean_name(payload.get("title") or payload.get("filename") or "audio")
     force = bool(payload.get("force"))
+    provider = normalize_provider(str(payload.get("provider") or "volcengine"))
+    credentials = payload.get("credentials") if isinstance(payload.get("credentials"), dict) else {}
+
     if record_id:
         meta = get_audio_meta(record_id)
     else:
@@ -140,56 +214,187 @@ def submit_recognition(environ, payload: dict):
     if manifest.exists() and not force:
         return {"ok": True, "status": "done", "cached": True, "manifest": refresh_cached_manifest(record_id)}
 
-    volc_audio_url = absolute_url(environ, meta["audio_url"])
-    volc_task_id, logid = volc_submit(volc_audio_url)
+    ensure_provider_supported(provider)
+    audio_url = absolute_url(environ, meta["audio_url"])
+
     task_id = str(uuid.uuid4())
     task = {
         "task_id": task_id,
         "status": "processing",
+        "provider": provider,
         "filename": meta["filename"],
         "title": title,
         "record_id": record_id,
         "audio_hash": audio_hash,
         "audio_url": meta["audio_url"],
-        "volc_audio_url": volc_audio_url,
-        "volc_task_id": volc_task_id,
-        "volc_logid": logid,
+        "provider_audio_url": audio_url,
         "created_at": int(time.time()),
         "updated_at": int(time.time()),
     }
+
+    # ── Qwen-ASR：先存任务立即返回 task_id，由 poll 真正发起 API 调用 ──────────
+    # 原因：Qwen-ASR 单次调用最长需数分钟，浏览器 fetch 会超时；改为异步轮询模式
+    if provider == "aliyun_qwen":
+        api_key = _get_credential(credentials, "api_key")
+        task["credential_source"] = "env" if env("DASHSCOPE_API_KEY") else "frontend"
+        task["api_key_snapshot"] = api_key  # 存储以便 poll 使用（非敏感存储）
+        write_json(task_path(task_id), task)
+        return {"ok": True, "status": "processing", "task_id": task_id}
+
+    # ── Fun-ASR：异步提交 ──────────────────────────────────────────────────────
+    elif provider == "aliyun_fun":
+        from .aliyun_fun import fun_submit, FUNASR_MODEL_FUNASR
+        api_key = _get_credential(credentials, "api_key")
+        task["credential_source"] = "env" if env("DASHSCOPE_API_KEY") else "frontend"
+        provider_task_id = fun_submit(audio_url, api_key=api_key, model=FUNASR_MODEL_FUNASR)
+        task["provider_task_id"] = provider_task_id
+
+    # ── Paraformer：异步提交（与 Fun-ASR 相同 API，仅 model 不同） ──────────────────
+    elif provider == "aliyun_paraformer":
+        from .aliyun_fun import fun_submit, FUNASR_MODEL_PARAFORMER
+        api_key = _get_credential(credentials, "api_key")
+        task["credential_source"] = "env" if env("DASHSCOPE_API_KEY") else "frontend"
+        provider_task_id = fun_submit(audio_url, api_key=api_key, model=FUNASR_MODEL_PARAFORMER)
+        task["provider_task_id"] = provider_task_id
+
+    # ── 腾讯云：异步提交 ──────────────────────────────────────────────────────
+    elif provider == "tencent":
+        from .tencent_asr import tencent_submit
+        secret_id = _get_credential(credentials, "secret_id")
+        secret_key = _get_credential(credentials, "secret_key")
+        task["credential_source"] = "env" if env("TENCENT_SECRET_ID") else "frontend"
+        provider_task_id = tencent_submit(audio_url, secret_id=secret_id, secret_key=secret_key)
+        task["provider_task_id"] = provider_task_id
+
+    # ── 火山引擎：异步提交 ────────────────────────────────────────────────────
+    elif provider == "volcengine":
+        api_key = _get_credential(credentials, "api_key")
+        task["credential_source"] = "env" if env("VOLCENGINE_API_KEY") else "frontend"
+        volc_task_id, logid = volc_submit(audio_url, api_key=api_key)
+        task["provider_task_id"] = volc_task_id
+        task["volc_task_id"] = volc_task_id   # 向后兼容
+        task["volc_logid"] = logid
+        task["volc_audio_url"] = audio_url
+
+    else:
+        raise RuntimeError(f"unsupported ASR provider: {provider}")
+
     write_json(task_path(task_id), task)
     return {"ok": True, "status": "processing", "task_id": task_id}
 
 
-def poll_task(task_id: str):
+# ── 轮询任务 ──────────────────────────────────────────────────────────────────
+
+def poll_task(task_id: str, payload: dict | None = None):
     path = task_path(task_id)
     if not path.exists():
         return "404 Not Found", {"ok": False, "error": "task not found"}
     task = read_json_file(path)
+
     if task.get("status") == "done":
         return "200 OK", {"ok": True, "status": "done", "manifest": task.get("manifest")}
     if task.get("status") == "failed":
         return "200 OK", {"ok": True, "status": "failed", "error": task.get("error")}
 
-    status, message, parsed, _ = volc_query(task["volc_task_id"], task["volc_logid"])
+    provider = ensure_provider_supported(task.get("provider") or "volcengine")
+    payload = payload or {}
+    credentials = payload.get("credentials") if isinstance(payload.get("credentials"), dict) else {}
+
     task["updated_at"] = int(time.time())
-    task["volc_status"] = status
-    task["volc_message"] = message
-    if status == "20000000":
-        manifest = write_artifacts(task, parsed)
+
+    # ── Qwen-ASR：此时才真正发起同步 API 调用 ────────────────────────────────
+    # poll 请求由前端每 5s 发一次，在此阻塞 Qwen 调用不影响浏览器 fetch 超时
+    if provider == "aliyun_qwen":
+        from .aliyun_qwen import qwen_recognize
+        # 优先用前端实时传入的 api_key，其次用 submit 时快照的 key
+        api_key = _get_credential(credentials, "api_key") or task.get("api_key_snapshot", "")
+        try:
+            plain_text = qwen_recognize(task["provider_audio_url"], api_key=api_key)
+        except RuntimeError as exc:
+            task["status"] = "failed"
+            task["error"] = str(exc)
+            write_json(path, task)
+            return "200 OK", {"ok": True, "status": "failed", "error": task["error"]}
+        task["plain_text"] = plain_text
+        manifest = write_artifacts(task, cues=[], raw_data={"text": plain_text})
         task["status"] = "done"
         task["manifest"] = manifest
         write_json(path, task)
         return "200 OK", {"ok": True, "status": "done", "manifest": manifest}
-    if status in PROCESSING_STATUSES:
+
+    # ── Fun-ASR / Paraformer ──────────────────────────────────────────────────
+    elif provider in {"aliyun_fun", "aliyun_paraformer"}:
+
+        from .aliyun_fun import fun_query
+        api_key = _get_credential(credentials, "api_key")
+        status, sentences = fun_query(task["provider_task_id"], api_key=api_key)
+        if status == "SUCCEEDED":
+            cues = extract_cues_funasr(sentences or [])
+            manifest = write_artifacts(task, cues, raw_data=sentences)
+            task["status"] = "done"
+            task["manifest"] = manifest
+            write_json(path, task)
+            return "200 OK", {"ok": True, "status": "done", "manifest": manifest}
+        if status == "FAILED":
+            task["status"] = "failed"
+            task["error"] = "Fun-ASR task failed"
+            write_json(path, task)
+            return "200 OK", {"ok": True, "status": "failed", "error": task["error"]}
+        # PENDING / RUNNING
         write_json(path, task)
-        return "200 OK", {"ok": True, "status": "processing", "message": message}
+        return "200 OK", {"ok": True, "status": "processing", "message": status}
 
-    task["status"] = "failed"
-    task["error"] = f"{status} {message}"
-    write_json(path, task)
-    return "200 OK", {"ok": True, "status": "failed", "error": task["error"]}
+    # ── 腾讯云 ───────────────────────────────────────────────────────────────
+    elif provider == "tencent":
+        from .tencent_asr import tencent_query
+        secret_id = _get_credential(credentials, "secret_id")
+        secret_key = _get_credential(credentials, "secret_key")
+        status_str, result_detail = tencent_query(
+            task["provider_task_id"], secret_id=secret_id, secret_key=secret_key
+        )
+        if status_str == "success":
+            cues = extract_cues_tencent(result_detail or [])
+            manifest = write_artifacts(task, cues, raw_data=result_detail)
+            task["status"] = "done"
+            task["manifest"] = manifest
+            write_json(path, task)
+            return "200 OK", {"ok": True, "status": "done", "manifest": manifest}
+        # waiting / doing
+        write_json(path, task)
+        return "200 OK", {"ok": True, "status": "processing", "message": status_str}
 
+    # ── 火山引擎 ─────────────────────────────────────────────────────────────
+    elif provider == "volcengine":
+        api_key = _get_credential(credentials, "api_key")
+        volc_task_id = task.get("provider_task_id") or task.get("volc_task_id", "")
+        volc_logid = task.get("volc_logid", "")
+        status, message, parsed, _ = volc_query(volc_task_id, volc_logid, api_key=api_key)
+        task["volc_status"] = status
+        task["volc_message"] = message
+        if status == "20000000":
+            cues = extract_cues(parsed)
+            manifest = write_artifacts_volc(task, parsed)
+            task["status"] = "done"
+            task["manifest"] = manifest
+            write_json(path, task)
+            return "200 OK", {"ok": True, "status": "done", "manifest": manifest}
+        if status in {"20000001", "20000002"}:
+            write_json(path, task)
+            return "200 OK", {"ok": True, "status": "processing", "message": message}
+        task["status"] = "failed"
+        task["error"] = f"{status} {message}"
+        write_json(path, task)
+        return "200 OK", {"ok": True, "status": "failed", "error": task["error"]}
+
+    else:
+        raise RuntimeError(f"unsupported ASR provider: {provider}")
+
+
+# ── 其他操作 ──────────────────────────────────────────────────────────────────
 
 def delete_result(record_id: str):
     return delete_record(record_id)
+
+
+def get_provider_config():
+    return provider_catalog()

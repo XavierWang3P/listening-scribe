@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/img/favicon-32.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/assets/img/apple-touch-icon.png">
+  <title>{title} - Listening Scribe</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>{css}</style>
+</head>
+<body>
+  <header class="app-header">
+    <div class="container-xxl py-3 px-3 px-md-4">
+      <div class="d-flex align-items-center justify-content-between gap-3">
+        <a class="app-brand" href="/" aria-label="Listening Scribe 首页">
+          <img class="app-logo" src="/assets/img/logo.png" alt="" width="36" height="36">
+          <span class="app-title">Listening Scribe</span>
+        </a>
+        <a class="back-link" href="/">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M11.354 1.646a.5.5 0 0 1 0 .708L5.707 8l5.647 5.646a.5.5 0 0 1-.708.708l-6-6a.5.5 0 0 1 0-.708l6-6a.5.5 0 0 1 .708 0z"/></svg>
+          返回首页
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <div class="player-bar">
+    <div class="container-xxl py-3 px-3 px-md-4">
+      <h1 class="result-title">{title}</h1>
+      <div class="card">
+        <div class="card-body py-3">
+          <audio id="audio" class="audio-player" preload="metadata">
+            <source src="{audio_src}" type="{audio_type}">
+          </audio>
+          <div class="custom-player">
+            <!-- 单行：[▶] [0:00 / 9:00] [══════进度条══════] -->
+            <div class="player-main">
+              <button id="playToggle" class="btn player-play" type="button" aria-label="播放">
+                <span id="playIcon" aria-hidden="true">▶</span>
+              </button>
+              <div class="player-time" aria-live="off">
+                <span id="currentTime">0:00</span><span class="player-time-sep">/</span><span id="durationTime">--:--</span>
+              </div>
+              <label class="visually-hidden" for="seek">播放进度</label>
+              <input id="seek" class="player-seek" type="range" min="0" max="1000" step="1" value="0" aria-label="播放进度">
+            </div>
+            <!-- 工具栏 -->
+            <div class="player-toolbar">
+              <div class="playback-controls">
+                <div class="control-field">
+                  <span class="control-label">倍速</span>
+                  <div class="btn-group btn-group-sm rate-buttons" role="group" aria-label="倍速">
+                    <button type="button" class="btn btn-outline-primary rate-button" data-rate="0.75">0.75x</button>
+                    <button type="button" class="btn btn-outline-primary rate-button active" data-rate="1" aria-pressed="true">1x</button>
+                    <button type="button" class="btn btn-outline-primary rate-button" data-rate="1.25">1.25x</button>
+                    <button type="button" class="btn btn-outline-primary rate-button" data-rate="1.5">1.5x</button>
+                    <button type="button" class="btn btn-outline-primary rate-button" data-rate="2">2x</button>
+                  </div>
+                </div>
+                <div class="control-field">
+                  <div class="btn-group btn-group-sm seek-buttons" role="group" aria-label="音频跳转控制">
+                    <button id="back3" class="btn btn-outline-primary" type="button" title="后退 3 秒">−3s</button>
+                    <button id="forward3" class="btn btn-outline-primary" type="button" title="前进 3 秒">+3s</button>
+                  </div>
+                </div>
+              </div>
+              <div class="setting-controls">
+                <div class="form-check form-switch mb-0">
+                  <input id="hideText" class="form-check-input" type="checkbox" role="switch">
+                  <label class="form-check-label" for="hideText">隐藏转译文本</label>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div id="audioError" class="alert alert-danger py-2 mt-3 mb-0 d-none" role="alert"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <main class="container-xxl py-4 px-3 px-md-4">
+    <section>
+      <div class="d-flex align-items-center justify-content-between gap-2 mb-3">
+        <h2 class="subtitle-section-title">字幕</h2>
+        <span class="badge rounded-pill" style="background:var(--asr-accent-soft);color:var(--asr-accent);font-size:var(--asr-type-meta);font-weight:600;border:1px solid var(--asr-border);">{cue_count} 条</span>
+      </div>
+      <div class="list-group subtitle-list">
+        {cue_items}
+      </div>
+    </section>
+  </main>
+
+  <footer class="app-footer mt-4">
+    <div class="container-xxl py-3 px-3 px-md-4 d-flex align-items-center justify-content-between gap-3 flex-wrap">
+      <span class="footer-text">© {year} Listening Scribe</span>
+      <a class="footer-text" href="/" style="text-decoration:none;color:var(--asr-accent);">返回首页</a>
+    </div>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    // 注入动态数据供 result.js 使用
+    window.CUE_DATA = {cue_data_json};
+    window.AUDIO_SRC = {audio_src_json};
+  </script>
+  <script>{js}</script>
+</body>
+</html>

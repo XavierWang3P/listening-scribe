@@ -87,6 +87,8 @@ def file_response(start_response, environ, path: Path, content_type: str | None 
         ("Accept-Ranges", "bytes"),
         ("Access-Control-Allow-Origin", env("ALLOWED_ORIGIN", "*")),
     ]
+    if env("ASR_NO_CACHE") == "1":
+        headers.append(("Cache-Control", "no-store"))
     if range_info == "invalid":
         headers.extend([("Content-Range", f"bytes */{size}"), ("Content-Length", "0")])
         start_response("416 Range Not Satisfiable", headers)

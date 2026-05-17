@@ -3,6 +3,22 @@
   const audioInput = document.querySelector("#audio");
   const titleInput = document.querySelector("#title");
   const forceInput = document.querySelector("#force");
+  const providerSelect = document.querySelector("#provider");
+  const providerDropdownButton = document.querySelector("#providerDropdownButton");
+  const providerDropdownMenu = document.querySelector("#providerDropdownMenu");
+  const credentialKeyInput = document.querySelector("#credentialKey");
+  const credentialSecretInput = document.querySelector("#credentialSecret");
+  const credentialKeyLabel = document.querySelector("#credentialKeyLabel");
+  const credentialSecretLabel = document.querySelector("#credentialSecretLabel");
+  const credentialHint = document.querySelector("#credentialHint");
+  const rememberCredentialsInput = document.querySelector("#rememberCredentials");
+  const credentialSecretRows = document.querySelectorAll(".provider-secret-row");
+  const providerGuideTitle = document.querySelector("#providerGuideTitle");
+  const providerGuideMeta = document.querySelector("#providerGuideMeta");
+  const providerGuideLink = document.querySelector("#providerGuideLink");
+  const providerGuideList = document.querySelector("#providerGuideList");
+  const liveToastButton = document.querySelector("#liveToastBtn");
+  const providerGuideToast = document.querySelector("#providerGuideToast");
   const form = document.querySelector("#uploadForm");
   const startButton = document.querySelector("#start");
   const clearButton = document.querySelector("#clear");
@@ -16,6 +32,57 @@
 
   let progressValue = 0;
   let activeRecordId = "";
+  let logHistory = [];
+  let providerConfig = {
+    default_provider: "volcengine",
+    providers: [
+      {
+        id: "volcengine",
+        label: "火山引擎",
+        product: "录音文件识别",
+        doc_url: "https://www.volcengine.com/docs/6561/80820?lang=zh",
+        supported: true,
+        status_label: "已接入",
+        auth_type: "API Key",
+        server_configured: false,
+        credential_fields: ["api_key"],
+        env_keys: ["VOLCENGINE_API_KEY", "VOLCENGINE_RESOURCE_ID", "VOLCENGINE_MODEL_VERSION"],
+        audio_source: "公网可访问的音频 URL",
+        api_flow: ["submit", "query"],
+        guide: []
+      },
+      {
+        id: "aliyun",
+        label: "阿里云",
+        product: "录音文件识别",
+        doc_url: "https://help.aliyun.com/zh/isi/developer-reference/api-reference-2",
+        supported: false,
+        status_label: "待接入",
+        auth_type: "AccessKey",
+        server_configured: false,
+        credential_fields: ["access_key_id", "access_key_secret"],
+        env_keys: ["ALIYUN_ACCESS_KEY_ID", "ALIYUN_ACCESS_KEY_SECRET", "ALIYUN_APP_KEY", "ALIYUN_REGION"],
+        audio_source: "HTTP 可访问的音频文件 URL",
+        api_flow: ["submit", "query"],
+        guide: []
+      },
+      {
+        id: "tencent",
+        label: "腾讯云",
+        product: "录音文件识别",
+        doc_url: "https://cloud.tencent.com/document/product/647/131299",
+        supported: false,
+        status_label: "待接入",
+        auth_type: "SecretId / SecretKey",
+        server_configured: false,
+        credential_fields: ["secret_id", "secret_key"],
+        env_keys: ["TENCENT_SECRET_ID", "TENCENT_SECRET_KEY", "TENCENT_REGION"],
+        audio_source: "URL 或本地文件数据",
+        api_flow: ["CreateRecTask", "DescribeTaskStatus"],
+        guide: []
+      }
+    ]
+  };
 
   function t(key, values = {}) {
     const template = TEXT[key] || key;
@@ -37,6 +104,228 @@
     });
   }
 
+  function providerMeta(providerId = providerSelect.value) {
+    return providerConfig.providers.find(item => item.id === providerId) || providerConfig.providers[0];
+  }
+
+  function providerLabel(providerId = providerSelect.value) {
+    const meta = providerMeta(providerId);
+    // 静态文本映射（原有三个），其余直接用服务端返回的 label
+    const textKey = {
+      volcengine: "providerVolcengine",
+      aliyun: "providerAliyun",
+      tencent: "providerTencent"
+    }[meta.id];
+    return textKey ? t(textKey) : (meta.label || meta.id);
+  }
+
+  function cookieName(providerId, field) {
+    return `asr_${providerId}_${field}`;
+  }
+
+  function setCookie(name, value, maxAgeDays = 180) {
+    document.cookie = `${name}=${encodeURIComponent(value)}; Max-Age=${maxAgeDays * 24 * 60 * 60}; Path=/; SameSite=Lax`;
+  }
+
+  function getCookie(name) {
+    const prefix = `${name}=`;
+    return document.cookie
+      .split(";")
+      .map(value => value.trim())
+      .find(value => value.startsWith(prefix))
+      ?.slice(prefix.length) || "";
+  }
+
+  function deleteCookie(name) {
+    document.cookie = `${name}=; Max-Age=0; Path=/; SameSite=Lax`;
+  }
+
+  function readCookie(name) {
+    const value = getCookie(name);
+    return value ? decodeURIComponent(value) : "";
+  }
+
+  function credentialShape(providerId = providerSelect.value) {
+    if (providerId === "aliyun") {
+      return {
+        keyField: "access_key_id",
+        keyLabel: t("credentialAccessKeyIdLabel"),
+        keyPlaceholder: t("credentialAccessKeyIdPlaceholder"),
+        secretField: "access_key_secret",
+        secretLabel: t("credentialAccessKeySecretLabel"),
+        secretPlaceholder: t("credentialAccessKeySecretPlaceholder")
+      };
+    }
+    if (providerId === "tencent") {
+      return {
+        keyField: "secret_id",
+        keyLabel: t("credentialSecretIdLabel"),
+        keyPlaceholder: t("credentialSecretIdPlaceholder"),
+        secretField: "secret_key",
+        secretLabel: t("credentialSecretKeyLabel"),
+        secretPlaceholder: t("credentialSecretKeyPlaceholder")
+      };
+    }
+    return {
+      keyField: "api_key",
+      keyLabel: t("credentialApiKeyLabel"),
+      keyPlaceholder: t("credentialApiKeyPlaceholder"),
+      secretField: "",
+      secretLabel: "",
+      secretPlaceholder: ""
+    };
+  }
+
+  function collectCredentials() {
+    const providerId = providerSelect.value;
+    const shape = credentialShape(providerId);
+    const credentials = {};
+    credentials[shape.keyField] = credentialKeyInput.value.trim();
+    if (shape.secretField) {
+      credentials[shape.secretField] = credentialSecretInput.value.trim();
+    }
+    return credentials;
+  }
+
+  function loadCredentialsFromCookies(providerId = providerSelect.value) {
+    const shape = credentialShape(providerId);
+    credentialKeyInput.value = readCookie(cookieName(providerId, shape.keyField));
+    credentialSecretInput.value = shape.secretField ? readCookie(cookieName(providerId, shape.secretField)) : "";
+    rememberCredentialsInput.checked = readCookie(cookieName(providerId, "remember")) === "1";
+  }
+
+  function persistCredentials(providerId = providerSelect.value) {
+    const shape = credentialShape(providerId);
+    if (rememberCredentialsInput.checked) {
+      setCookie(cookieName(providerId, shape.keyField), credentialKeyInput.value.trim());
+      if (shape.secretField) {
+        setCookie(cookieName(providerId, shape.secretField), credentialSecretInput.value.trim());
+      }
+      setCookie(cookieName(providerId, "remember"), "1");
+      log(t("logCredentialSaved"));
+      return;
+    }
+    deleteCookie(cookieName(providerId, shape.keyField));
+    if (shape.secretField) {
+      deleteCookie(cookieName(providerId, shape.secretField));
+    }
+    deleteCookie(cookieName(providerId, "remember"));
+    log(t("logCredentialCleared"));
+  }
+
+  function renderProviderOptions() {
+    providerSelect.innerHTML = "";
+    providerDropdownMenu.innerHTML = "";
+    for (const provider of providerConfig.providers) {
+      const option = document.createElement("option");
+      option.value = provider.id;
+      option.textContent = providerLabel(provider.id);
+      providerSelect.append(option);
+
+      const item = document.createElement("li");
+      const button = document.createElement("button");
+      button.className = "dropdown-item provider-dropdown-item";
+      button.type = "button";
+      button.dataset.providerId = provider.id;
+      button.textContent = providerLabel(provider.id);
+      button.addEventListener("click", () => {
+        setProvider(provider.id, true);
+      });
+      item.append(button);
+      providerDropdownMenu.append(item);
+    }
+    providerSelect.value = readCookie("asr_provider") || providerConfig.default_provider || "volcengine";
+    if (!providerConfig.providers.some(provider => provider.id === providerSelect.value)) {
+      providerSelect.value = providerConfig.default_provider || "volcengine";
+    }
+    syncProviderDropdown();
+  }
+
+  function syncProviderDropdown() {
+    const selectedProvider = providerSelect.value;
+    providerDropdownButton.textContent = providerLabel(selectedProvider);
+    providerDropdownMenu.querySelectorAll(".provider-dropdown-item").forEach(button => {
+      const isSelected = button.dataset.providerId === selectedProvider;
+      button.classList.toggle("active", isSelected);
+      button.setAttribute("aria-current", isSelected ? "true" : "false");
+    });
+  }
+
+  function setProvider(providerId, loadSaved = true) {
+    providerSelect.value = providerId;
+    setCookie("asr_provider", providerId);
+    syncProviderDropdown();
+    updateCredentialFields(loadSaved);
+  }
+
+  function updateCredentialFields(loadSaved = false) {
+    const providerId = providerSelect.value;
+    const meta = providerMeta(providerId);
+    const shape = credentialShape(providerId);
+    renderProviderGuide(meta);
+    credentialKeyLabel.textContent = shape.keyLabel;
+    credentialKeyInput.placeholder = shape.keyPlaceholder;
+    credentialSecretLabel.textContent = shape.secretLabel;
+    credentialSecretInput.placeholder = shape.secretPlaceholder;
+    credentialSecretRows.forEach(row => row.classList.toggle("is-hidden", !shape.secretField));
+    if (loadSaved) {
+      loadCredentialsFromCookies(providerId);
+    }
+    if (!meta.supported) {
+      credentialHint.textContent = t("providerUnsupported", { provider: providerLabel(providerId) });
+      credentialHint.classList.add("text-danger");
+      return;
+    }
+    credentialHint.classList.remove("text-danger");
+    credentialHint.textContent = meta.server_configured ? t("providerConfigured") : t("providerNeedsFrontendKey");
+  }
+
+  function renderProviderGuide(meta) {
+    providerGuideTitle.textContent = t("providerGuideTitle", {
+      provider: providerLabel(meta.id),
+      product: meta.product || ""
+    });
+    providerGuideMeta.textContent = t("providerGuideMeta", {
+      status: meta.status_label || (meta.supported ? "已接入" : "待接入"),
+      auth: meta.auth_type || "",
+      audio: meta.audio_source || ""
+    });
+    providerGuideLink.href = meta.doc_url || "#";
+    providerGuideLink.textContent = t("providerDocButton");
+    providerGuideLink.classList.toggle("disabled", !meta.doc_url);
+    providerGuideList.innerHTML = "";
+
+    const items = [
+      t("providerApiFlow", { flow: (meta.api_flow || []).join(" -> ") }),
+      t("providerEnvKeys", { keys: (meta.env_keys || []).join(", ") }),
+      ...(meta.guide || [])
+    ].filter(Boolean);
+
+    for (const item of items) {
+      const li = document.createElement("li");
+      li.textContent = item;
+      providerGuideList.append(li);
+    }
+  }
+
+  function showProviderGuideToast() {
+    renderProviderGuide(providerMeta());
+    if (window.bootstrap && providerGuideToast) {
+      window.bootstrap.Toast.getOrCreateInstance(providerGuideToast, { autohide: false }).show();
+    }
+  }
+
+  async function loadProviderConfig() {
+    try {
+      const data = await jsonFetch(apiUrl("/api/providers"));
+      providerConfig = data;
+    } catch (error) {
+      log(t("providerLoadFailed"));
+    }
+    renderProviderOptions();
+    updateCredentialFields(true);
+  }
+
   function apiUrl(path) {
     return path;
   }
@@ -47,18 +336,19 @@
 
   function log(message) {
     const time = new Date().toLocaleTimeString();
-    logEl.textContent += `[${time}] ${message}\n`;
+    const entry = `[${time}] ${message}`;
+    logHistory.push(entry);
+    logEl.textContent = logHistory.join("\n");
     logEl.scrollTop = logEl.scrollHeight;
   }
 
+  function getFullLog() {
+    return logHistory.join("\n");
+  }
+
   function setStatus(message, kind = "") {
-    const classes = {
-      ok: "alert-success",
-      bad: "alert-danger",
-      warn: "alert-warning"
-    };
     statusEl.textContent = message;
-    statusEl.className = `alert ${classes[kind] || "alert-secondary"} py-2 mb-3`;
+    statusEl.className = "status-display" + (kind === "ok" ? " status-ok" : kind === "bad" ? " status-bad" : "");
   }
 
   function setProgress(value) {
@@ -129,10 +419,17 @@
   async function poll(taskId) {
     for (;;) {
       await new Promise(resolve => setTimeout(resolve, 5000));
-      const data = await jsonFetch(apiUrl(`/api/status?task_id=${encodeURIComponent(taskId)}`));
+      const data = await jsonFetch(apiUrl("/api/status"), {
+        method: "POST",
+        body: JSON.stringify({
+          task_id: taskId,
+          provider: providerSelect.value,
+          credentials: collectCredentials()
+        })
+      });
       if (data.status === "processing") {
         setProgress(Math.min(95, progressValue + 3));
-        log(data.message || t("processingMessage"));
+        log(data.message || t("processingMessage", { provider: providerLabel() }));
         continue;
       }
       if (data.status === "failed") {
@@ -275,6 +572,18 @@
       setStatus(t("chooseAudioWarning"), "bad");
       return;
     }
+    const selectedProvider = providerSelect.value;
+    const selectedMeta = providerMeta(selectedProvider);
+    if (!selectedMeta.supported) {
+      setStatus(t("providerUnsupported", { provider: providerLabel(selectedProvider) }), "bad");
+      return;
+    }
+    // 检查：所有 Provider 若未服务端配置，则必须在前端填写主 Key
+    const needsKey = !selectedMeta.server_configured && selectedMeta.credential_fields.length > 0;
+    if (needsKey && !credentialKeyInput.value.trim()) {
+      setStatus(t("chooseProviderKeyWarning"), "bad");
+      return;
+    }
 
     startButton.disabled = true;
     clearResultLinks();
@@ -282,6 +591,9 @@
     setStatus(t("preparingStatus"));
 
     try {
+      setCookie("asr_provider", selectedProvider);
+      persistCredentials(selectedProvider);
+      log(t("logProvider", { provider: providerLabel(selectedProvider) }));
       log(t("logFile", { name: file.name, size: file.size }));
       const hash = await sha256(file);
       setProgress(15);
@@ -314,6 +626,8 @@
           title: titleInput.value.trim() || titleFromFilename(file.name),
           record_id: upload.record_id,
           audio_hash: upload.audio_hash,
+          provider: selectedProvider,
+          credentials: collectCredentials(),
           force: forceInput.checked
         })
       });
@@ -327,7 +641,7 @@
         return;
       }
 
-      setStatus(t("recognizingStatus"));
+      setStatus(t("recognizingStatus", { provider: providerLabel(selectedProvider) }));
       log(t("logTaskId", { taskId: submit.task_id }));
       const manifest = await poll(submit.task_id);
       renderLinks(manifest);
@@ -350,7 +664,12 @@
 
     form.addEventListener("submit", handleSubmit);
 
+    providerSelect.addEventListener("change", () => {
+      setProvider(providerSelect.value, true);
+    });
+
     clearButton.addEventListener("click", () => {
+      logHistory = [];
       logEl.textContent = "";
       clearResultLinks();
       setProgress(0);
@@ -358,9 +677,13 @@
     });
 
     refreshHistoryButton.addEventListener("click", loadHistory);
+    liveToastButton.addEventListener("click", showProviderGuideToast);
   }
 
   applyTexts();
+  renderProviderOptions();
+  updateCredentialFields(true);
   bindEvents();
+  loadProviderConfig();
   loadHistory();
 })();
