@@ -84,13 +84,12 @@ def write_artifacts(task: dict, cues: list[dict], raw_data: object = None):
     if has_timestamps:
         srt_filename = f"{title}.srt"
         vtt_filename = f"{title}.vtt"
-        html_filename = f"{title}_字幕跳转.html"
         write_text(base / "subtitles" / srt_filename, make_srt(cues))
         write_text(base / "subtitles" / vtt_filename, make_vtt(cues))
-        write_text(base / html_filename, make_result_html(title, cues, audio_src, audio_type))
+        write_text(base / "index.html", make_result_html(title, cues, audio_src, audio_type))
         urls["srt"] = result_url(record_id, "subtitles", srt_filename)
         urls["vtt"] = result_url(record_id, "subtitles", vtt_filename)
-        urls["html"] = result_url(record_id, html_filename)
+        urls["html"] = result_url(record_id, "index.html")
 
     manifest = {
         "record_id": record_id,
