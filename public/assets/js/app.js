@@ -68,7 +68,7 @@
       },
       {
         id: "tencent",
-        label: "腾讯云",
+        label: "腾讯云语音识别",
         product: "录音文件识别",
         doc_url: "https://cloud.tencent.com/document/product/647/131299",
         supported: false,

@@ -55,7 +55,7 @@ def extract_cues_funasr(sentences: list) -> list[dict]:
 
 
 def extract_cues_tencent(result_detail: list) -> list[dict]:
-    """从腾讯云 DescribeTaskStatus ResultDetail 中提取标准化 cue 列表。
+    """从腾讯云语音识别 DescribeTaskStatus ResultDetail 中提取标准化 cue 列表。
 
     字段：FinalSentence / StartMs / EndMs。
     """

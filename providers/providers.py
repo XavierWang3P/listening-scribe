@@ -77,7 +77,7 @@ PROVIDERS = {
 
     },
     "tencent": {
-        "label": "腾讯云",
+        "label": "腾讯云语音识别",
         "product": "录音文件识别",
         "doc_url": "https://cloud.tencent.com/document/product/1093/37823",
         "supported": True,
@@ -89,9 +89,9 @@ PROVIDERS = {
         "api_flow": ["CreateRecTask", "DescribeTaskStatus"],
         "has_timestamps": True,
         "guide": [
-            "在腾讯云 CAM 控制台获取 SecretId 和 SecretKey，并开通语音识别服务。",
+            "在腾讯云语音识别 CAM 控制台获取 SecretId 和 SecretKey，并开通语音识别服务。",
             "默认使用 16k_zh 引擎（中文普通话），返回句级时间戳，可生成字幕跳转页面。",
-            "PUBLIC_BASE_URL 必须是腾讯云可以访问的公网地址，本工具会把本地音频发布为 /media/audio/... URL。",
+            "PUBLIC_BASE_URL 必须是腾讯云语音识别可以访问的公网地址，本工具会把本地音频发布为 /media/audio/... URL。",
         ],
     },
 }

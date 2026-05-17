@@ -34,7 +34,7 @@ graph TD
     subgraph Adapters [ASR Cloud Service Adapters]
         Service -->|Dynamic call| Providers[providers.py]
         Service -->|Volcengine ASR| Volc[volcengine.py]
-        Service -->|Tencent Cloud ASR| Tencent[tencent_asr.py]
+        Service -->|Tencent Cloud Speech Recognition ASR| Tencent[tencent_asr.py]
         Service -->|Aliyun Paraformer| AliFun[aliyun_fun_asr.py]
         Service -->|Aliyun Qwen Voice LLM| AliQwen[aliyun_qwen.py]
     end
@@ -67,7 +67,7 @@ The codebase is built on a modular structure with clear separation of concerns:
 | **`providers/`** | **ASR Engines Package** | **Aggregates integrated ASR engine adapters, grouped into a dedicated package.** |
 | ├── [`providers/providers.py`](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/providers/providers.py) | Providers Metadata | Declares the properties, guidelines, credential requirements, and support status of the integrated ASR services. |
 | ├── [`providers/volcengine.py`](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/providers/volcengine.py) | Volcengine Client | Implements the submit-and-poll lifecycle for Volcengine ASR. |
-| ├── [`providers/tencent_asr.py`](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/providers/tencent_asr.py) | Tencent Client | Built with native Tencent Cloud API 3.0 signing mechanisms (`CreateRecTask` / `DescribeTaskStatus`), eliminating SDK overhead. |
+| ├── [`providers/tencent_asr.py`](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/providers/tencent_asr.py) | Tencent Cloud Speech Recognition ASR Client | Built with native Tencent Cloud API 3.0 signing mechanisms (`CreateRecTask` / `DescribeTaskStatus`), eliminating SDK overhead. |
 | ├── [`providers/aliyun_fun_asr.py`](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/providers/aliyun_fun_asr.py) | Aliyun Fun-ASR | Integrates DashScope REST API for Paraformer-v2 and Fun-ASR models with multilingual sentence-level timestamp extraction. |
 | └── [`providers/aliyun_qwen.py`](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/providers/aliyun_qwen.py) | Aliyun Qwen Client | Integrates Aliyun's Qwen3-ASR-Flash voice LLM. Returns synchronous text transcripts without polling (no timestamps). |
 | **`subtitles/`** | **Subtitle Packages** | **Manages data serialization and the interactive HTML player templates.** |
@@ -79,7 +79,7 @@ The codebase is built on a modular structure with clear separation of concerns:
 
 ## 🌟 Key Features
 
-1. Multiple ASR Providers: Supports Volcengine ASR, Tencent Cloud ASR, Aliyun Paraformer-v2, Fun-ASR, and Qwen-ASR.
+1. Multiple ASR Providers: Supports Volcengine ASR, Tencent Cloud Speech Recognition ASR, Aliyun Paraformer-v2, Fun-ASR, and Qwen-ASR.
 2. Single-Page UI: Bootstrap 5 web UI with history management, provider selection, real-time logging, and credential cookie settings.
 3. Dual Credential Mode:
    * Supports server-side `.env` configuration to keep credentials completely hidden from clients.
@@ -94,12 +94,12 @@ The codebase is built on a modular structure with clear separation of concerns:
 
 ### 1. Requirements for Publicly Reachable URL
 
-Because cloud ASR engines (Volcengine, Aliyun, Tencent Cloud) pull audio files asynchronously, their servers must be able to fetch the audio file from your server over the internet.
+Because cloud ASR engines (Volcengine, Aliyun, Tencent Cloud Speech Recognition) pull audio files asynchronously, their servers must be able to fetch the audio file from your server over the internet.
 
 Therefore, the app requires a publicly reachable URL:
 * Cloud Server (VPS) Deployment: If deploying on a public VPS, simply set your domain or public IP.
 * Local Machine with Intranet Penetration: If running locally (e.g. localhost / 127.0.0.1) and using an intranet penetration / tunneling tool (e.g. frp, ngrok, cloudflare tunnel), set `PUBLIC_BASE_URL` to your public mapped address.
-* Local Machine without Intranet Penetration (Cloud Storage Upload): You can configure a private cloud storage bucket (Tencent Cloud COS or Aliyun OSS). The backend will automatically upload the audio file to your cloud storage before submitting the task, generate a 24-hour pre-signed GET URL for cloud ASR downloads, and automatically delete the audio from the cloud storage once the ASR task is finalized (success or failure) to minimize storage costs.
+* Local Machine without Intranet Penetration (Cloud Storage Upload): You can configure a private cloud storage bucket (Tencent Cloud Speech Recognition COS or Aliyun OSS). The backend will automatically upload the audio file to your cloud storage before submitting the task, generate a 24-hour pre-signed GET URL for cloud ASR downloads, and automatically delete the audio from the cloud storage once the ASR task is finalized (success or failure) to minimize storage costs.
 
 ### 2. Configure Environment
 
@@ -118,16 +118,16 @@ VOLCENGINE_MODEL_VERSION=400
 # Aliyun DashScope (DashScope API Key)
 DASHSCOPE_API_KEY=your_dashscope_api_key
 
-# Tencent Cloud ASR
+# Tencent Cloud Speech Recognition ASR
 TENCENT_SECRET_ID=your_tencent_secret_id
 TENCENT_SECRET_KEY=your_tencent_secret_key
 TENCENT_REGION=ap-guangzhou
 
 # Cloud Storage Upload (Optional, recommended for local deployment without tunneling)
-# Supported values: cos (Tencent Cloud) or oss (Aliyun), leave empty to use local storage URL
+# Supported values: cos (Tencent Cloud Speech Recognition) or oss (Aliyun), leave empty to use local storage URL
 UPLOAD_PROVIDER=
 
-# Tencent Cloud COS Configs (Optional, falls back to TENCENT_SECRET_ID/KEY/REGION)
+# Tencent Cloud Speech Recognition COS Configs (Optional, falls back to TENCENT_SECRET_ID/KEY/REGION)
 COS_SECRET_ID=
 COS_SECRET_KEY=
 COS_REGION=ap-guangzhou

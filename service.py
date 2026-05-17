@@ -300,7 +300,7 @@ def submit_recognition(environ, payload: dict):
         provider_task_id = fun_submit(audio_url, api_key=api_key, model=FUNASR_MODEL_PARAFORMER)
         task["provider_task_id"] = provider_task_id
 
-    # ── 腾讯云：异步提交 ──────────────────────────────────────────────────────
+    # ── 腾讯云语音识别：异步提交 ──────────────────────────────────────────────────────
     elif provider == "tencent":
         from providers.tencent_asr import tencent_submit
         secret_id = _get_credential(credentials, "secret_id")
@@ -384,7 +384,7 @@ def poll_task(task_id: str, payload: dict | None = None):
         write_json(path, task)
         return "200 OK", {"ok": True, "status": "processing", "message": status}
 
-    # ── 腾讯云 ───────────────────────────────────────────────────────────────
+    # ── 腾讯云语音识别 ───────────────────────────────────────────────────────────────
     elif provider == "tencent":
         from providers.tencent_asr import tencent_query
         secret_id = _get_credential(credentials, "secret_id")

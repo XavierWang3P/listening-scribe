@@ -1,4 +1,4 @@
-"""腾讯云录音文件识别适配器。
+"""腾讯云语音识别录音文件识别适配器。
 
 使用 TC3-HMAC-SHA256 签名（仅依赖 Python 标准库）。
 工作流程：
@@ -105,7 +105,7 @@ def _tc3_headers(secret_id: str, secret_key: str, action: str, region: str, payl
 
 
 def _call(action: str, payload: dict, secret_id: str, secret_key: str, region: str) -> dict:
-    """发送一次签名 POST 请求到腾讯云 ASR，返回解析后的 JSON。"""
+    """发送一次签名 POST 请求到腾讯云语音识别 ASR，返回解析后的 JSON。"""
     headers = _tc3_headers(secret_id, secret_key, action, region, payload)
     data = json.dumps(payload, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
     req = request.Request(TENCENT_ASR_URL, data=data, headers=headers, method="POST")
@@ -129,7 +129,7 @@ def tencent_submit(
     region: str = "",
     engine_model: str = "16k_zh",
 ) -> int:
-    """提交腾讯云录音识别任务。
+    """提交腾讯云语音识别录音识别任务。
 
     Returns:
         TaskId（整数）。
@@ -160,7 +160,7 @@ def tencent_query(
     secret_key: str = "",
     region: str = "",
 ) -> tuple[str, list | None]:
-    """查询腾讯云录音识别任务状态。
+    """查询腾讯云语音识别录音识别任务状态。
 
     Returns:
         (status_str, result_detail | None)

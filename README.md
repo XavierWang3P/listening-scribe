@@ -34,7 +34,7 @@ graph TD
     subgraph Adapters [ASR 云端服务适配器]
         Service -->|动态调用| Providers[providers.py]
         Service -->|火山转写| Volc[volcengine.py]
-        Service -->|腾讯云转写| Tencent[tencent_asr.py]
+        Service -->|腾讯云语音识别转写| Tencent[tencent_asr.py]
         Service -->|阿里云 Paraformer| AliFun[aliyun_fun_asr.py]
         Service -->|阿里云 Qwen 大模型| AliQwen[aliyun_qwen.py]
     end
@@ -67,7 +67,7 @@ graph TD
 | **`providers/`** | **ASR 引擎适配包** | **聚合了五大 ASR 引擎适配器模块，按功能独立划分。** |
 | ├── [`providers/providers.py`](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/providers/providers.py) | 服务商元数据声明 | 统一声明五大转写服务的配置约束（凭证字段、引导信息、支持特性等），动态输出给前端界面渲染。 |
 | ├── [`providers/volcengine.py`](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/providers/volcengine.py) | 火山引擎 ASR 客户端 | 封装火山引擎“提交录音任务 (submit) + 轮询查询 (query)”的 HTTP 交互逻辑。 |
-| ├── [`providers/tencent_asr.py`](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/providers/tencent_asr.py) | 腾讯云 ASR 客户端 | 基于腾讯云 API 3.0 签名机制，原生实现 `CreateRecTask` 和 `DescribeTaskStatus`，不依赖第三方 SDK。 |
+| ├── [`providers/tencent_asr.py`](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/providers/tencent_asr.py) | 腾讯云语音识别 ASR 客户端 | 基于腾讯云 API 3.0 签名机制，原生实现 `CreateRecTask` 和 `DescribeTaskStatus`，不依赖第三方 SDK。 |
 | ├── [`providers/aliyun_fun_asr.py`](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/providers/aliyun_fun_asr.py) | 阿里云百炼 Fun-ASR | 原生对接 DashScope REST API 录音文件转写服务，支持 Paraformer-v2 和 Fun-ASR 模型的多语言句级时间戳。 |
 | ├── [`providers/aliyun_qwen.py`](file:///Users/xw/Documents/Codex/2026-05-13/files-mentioned-by-the-user-txt/server_asr/providers/aliyun_qwen.py) | 阿里云百炼 Qwen-ASR | 对接千问语音大模型（Qwen3-ASR-Flash），使用同步调用接口（仅生成纯文本，无时间戳）。 |
 | **`subtitles/`** | **字幕生成与渲染包** | **专门负责字幕数据的序列化及跳转播放页的渲染。** |
@@ -79,7 +79,7 @@ graph TD
 
 ## 🌟 功能特点
 
-1. 多服务商支持：已全量接入火山引擎、阿里云百炼、腾讯云 ASR 服务。
+1. 多服务商支持：已全量接入火山引擎、阿里云百炼、腾讯云语音识别 ASR 服务。
 2. 单页交互界面：主页使用 Bootstrap 5 构建，支持历史记录管理、服务商切换、接口日志实时追加以及 API 密钥 Cookie 选项。
 3. 双重凭证安全机制：
    * 支持后端 `.env` 全局配置，对访问者隐藏凭证细节；
@@ -94,7 +94,7 @@ graph TD
 
 ### 1. 部署环境与公网地址要求
 
-由于本工具调用的是云端的 ASR 接口，云端服务器（如火山引擎、阿里云、腾讯云）在接收到转写请求后，需要通过网络拉取您服务器上的音频文件。
+由于本工具调用的是云端的 ASR 接口，云端服务器（如火山引擎、阿里云、腾讯云语音识别）在接收到转写请求后，需要通过网络拉取您服务器上的音频文件。
 
 因此，本工具必须配置一个可从公网访问的地址：
 * 公网云服务器部署：如果部署在公网 VPS，配置可访问该 VPS 的域名或公网 IP 即可。
@@ -118,16 +118,16 @@ VOLCENGINE_MODEL_VERSION=400
 # 阿里云百炼 (DashScope API Key)
 DASHSCOPE_API_KEY=your_dashscope_api_key
 
-# 腾讯云 ASR
+# 腾讯云语音识别 ASR
 TENCENT_SECRET_ID=your_tencent_secret_id
 TENCENT_SECRET_KEY=your_tencent_secret_key
 TENCENT_REGION=ap-guangzhou
 
 # 云存储上传配置（可选，本地部署且不使用内网穿透时推荐配置）
-# 支持的值：cos（腾讯云）或 oss（阿里云），留空则使用本地存储 URL
+# 支持的值：cos（腾讯云语音识别）或 oss（阿里云），留空则使用本地存储 URL
 UPLOAD_PROVIDER=
 
-# 腾讯云 COS 配置 (可选，留空则默认复用 TENCENT_SECRET_ID 和 TENCENT_SECRET_KEY)
+# 腾讯云语音识别 COS 配置 (可选，留空则默认复用 TENCENT_SECRET_ID 和 TENCENT_SECRET_KEY)
 COS_SECRET_ID=
 COS_SECRET_KEY=
 COS_REGION=ap-guangzhou

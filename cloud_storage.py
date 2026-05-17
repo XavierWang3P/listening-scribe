@@ -1,4 +1,4 @@
-"""自研原生腾讯云 COS 与阿里云 OSS 上传/清理/预签名接口。
+"""自研原生腾讯云语音识别 COS 与阿里云 OSS 上传/清理/预签名接口。
 
 无需任何第三方依赖，纯标准库实现。
 """
@@ -44,10 +44,10 @@ def is_cloud_storage_enabled() -> bool:
     return False
 
 
-# ── 腾讯云 COS 接口 ──────────────────────────────────────────────────────────
+# ── 腾讯云语音识别 COS 接口 ──────────────────────────────────────────────────────────
 
 def cos_upload(local_file_path: Path, object_key: str) -> str:
-    """上传本地文件到腾讯云 COS，返回预签名的 GET 下载地址。"""
+    """上传本地文件到腾讯云语音识别 COS，返回预签名的 GET 下载地址。"""
     secret_id, secret_key, region, bucket = get_cos_config()
     if not secret_id or not secret_key or not bucket:
         raise RuntimeError("Tencent Cloud COS configuration is incomplete.")
@@ -98,7 +98,7 @@ def cos_upload(local_file_path: Path, object_key: str) -> str:
 
 
 def cos_presigned_url(object_key: str, expires_in: int = 86400) -> str:
-    """生成腾讯云 COS 对象的预签名 GET URL。"""
+    """生成腾讯云语音识别 COS 对象的预签名 GET URL。"""
     secret_id, secret_key, region, bucket = get_cos_config()
     host = f"{bucket}.cos.{region}.myqcloud.com"
 
@@ -127,7 +127,7 @@ def cos_presigned_url(object_key: str, expires_in: int = 86400) -> str:
 
 
 def cos_delete(object_key: str):
-    """从腾讯云 COS 删除指定对象。"""
+    """从腾讯云语音识别 COS 删除指定对象。"""
     secret_id, secret_key, region, bucket = get_cos_config()
     if not secret_id or not secret_key or not bucket:
         return
