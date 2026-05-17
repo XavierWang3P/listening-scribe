@@ -18,7 +18,7 @@ import time
 from urllib import request
 from urllib.error import HTTPError, URLError
 
-from .config import env
+from config import env
 
 TENCENT_ASR_HOST = "asr.tencentcloudapi.com"
 TENCENT_ASR_URL = f"https://{TENCENT_ASR_HOST}/"

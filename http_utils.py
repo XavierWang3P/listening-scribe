@@ -2,7 +2,7 @@ import json
 import mimetypes
 from pathlib import Path
 
-from .config import env
+from config import env
 
 
 def api_error(message: str, status: str = "400 Bad Request", **extra):

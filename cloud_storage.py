@@ -11,7 +11,7 @@ import urllib.parse
 from pathlib import Path
 from urllib import request
 
-from .config import env
+from config import env
 
 
 def get_cos_config() -> tuple[str, str, str, str]:

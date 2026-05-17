@@ -7,7 +7,7 @@ import json
 from urllib import request
 from urllib.error import HTTPError, URLError
 
-from .config import env
+from config import env
 
 QWEN_ASR_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"
 QWEN_ASR_MODEL = "qwen3-asr-flash"

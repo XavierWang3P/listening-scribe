@@ -1,1 +1,0 @@
-"""Server ASR application package."""

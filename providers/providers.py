@@ -1,4 +1,4 @@
-from .config import env
+from config import env
 
 
 PROVIDERS = {

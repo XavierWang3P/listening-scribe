@@ -10,7 +10,7 @@ import json
 from urllib import request
 from urllib.error import HTTPError, URLError
 
-from .config import env
+from config import env
 
 FUNASR_SUBMIT_URL = "https://dashscope.aliyuncs.com/api/v1/services/audio/asr/transcription"
 FUNASR_QUERY_URL_TPL = "https://dashscope.aliyuncs.com/api/v1/tasks/{task_id}"

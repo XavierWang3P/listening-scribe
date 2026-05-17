@@ -6,8 +6,8 @@ import time
 import uuid
 from pathlib import Path
 
-from .config import AUDIO_DIR, DATA_DIR, HASH_DIR, RESULTS_DIR, TASKS_DIR, TMP_DIR, env
-from .utils import audio_ext, clean_name, quote_path, safe_relative_path, valid_record_id
+from config import AUDIO_DIR, DATA_DIR, HASH_DIR, RESULTS_DIR, TASKS_DIR, TMP_DIR, env
+from utils import audio_ext, clean_name, quote_path, safe_relative_path, valid_record_id
 
 
 def write_json(path: Path, payload: dict):

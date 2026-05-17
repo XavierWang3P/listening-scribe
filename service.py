@@ -4,10 +4,10 @@ import time
 import uuid
 from pathlib import Path
 
-from .config import env
-from .http_utils import absolute_url
-from .providers import PROVIDERS, ensure_provider_supported, normalize_provider, provider_catalog
-from .storage import (
+from config import env
+from http_utils import absolute_url
+from providers.providers import PROVIDERS, ensure_provider_supported, normalize_provider, provider_catalog
+from storage import (
     get_audio_meta,
     get_audio_meta_by_hash,
     manifest_path,
@@ -20,7 +20,7 @@ from .storage import (
     write_json,
     write_text,
 )
-from .subtitles import (
+from subtitles.subtitles import (
     TEMPLATE_VERSION,
     extract_cues,
     extract_cues_funasr,
@@ -30,8 +30,8 @@ from .subtitles import (
     make_txt,
     make_vtt,
 )
-from .utils import clean_name, safe_relative_path
-from .volcengine import volc_query, volc_submit
+from utils import clean_name, safe_relative_path
+from providers.volcengine import volc_query, volc_submit
 
 
 # ── 辅助：Provider 认证参数提取 ──────────────────────────────────────────────
@@ -217,8 +217,8 @@ def submit_recognition(environ, payload: dict):
     ensure_provider_supported(provider)
 
     # ── 检测是否启用云存储上传（COS / OSS），优先使用云存储以支持零内网穿透本地部署 ──
-    from .cloud_storage import is_cloud_storage_enabled, cos_upload, oss_upload
-    from .storage import audio_folder
+    from cloud_storage import is_cloud_storage_enabled, cos_upload, oss_upload
+    from storage import audio_folder
 
     audio_url = absolute_url(environ, meta["audio_url"])
     cloud_key = None
@@ -264,7 +264,7 @@ def submit_recognition(environ, payload: dict):
 
         def run_qwen_async():
             try:
-                from .aliyun_qwen import qwen_recognize
+                from providers.aliyun_qwen import qwen_recognize
                 plain_text = qwen_recognize(task["provider_audio_url"], api_key=api_key)
                 task["plain_text"] = plain_text
                 manifest = write_artifacts(task, cues=[], raw_data={"text": plain_text})
@@ -286,7 +286,7 @@ def submit_recognition(environ, payload: dict):
 
     # ── Fun-ASR：异步提交 ──────────────────────────────────────────────────────
     elif provider == "aliyun_fun":
-        from .aliyun_fun import fun_submit, FUNASR_MODEL_FUNASR
+        from providers.aliyun_fun import fun_submit, FUNASR_MODEL_FUNASR
         api_key = _get_credential(credentials, "api_key")
         task["credential_source"] = "env" if env("DASHSCOPE_API_KEY") else "frontend"
         provider_task_id = fun_submit(audio_url, api_key=api_key, model=FUNASR_MODEL_FUNASR)
@@ -294,7 +294,7 @@ def submit_recognition(environ, payload: dict):
 
     # ── Paraformer：异步提交（与 Fun-ASR 相同 API，仅 model 不同） ──────────────────
     elif provider == "aliyun_paraformer":
-        from .aliyun_fun import fun_submit, FUNASR_MODEL_PARAFORMER
+        from providers.aliyun_fun import fun_submit, FUNASR_MODEL_PARAFORMER
         api_key = _get_credential(credentials, "api_key")
         task["credential_source"] = "env" if env("DASHSCOPE_API_KEY") else "frontend"
         provider_task_id = fun_submit(audio_url, api_key=api_key, model=FUNASR_MODEL_PARAFORMER)
@@ -302,7 +302,7 @@ def submit_recognition(environ, payload: dict):
 
     # ── 腾讯云：异步提交 ──────────────────────────────────────────────────────
     elif provider == "tencent":
-        from .tencent_asr import tencent_submit
+        from providers.tencent_asr import tencent_submit
         secret_id = _get_credential(credentials, "secret_id")
         secret_key = _get_credential(credentials, "secret_key")
         task["credential_source"] = "env" if env("TENCENT_SECRET_ID") else "frontend"
@@ -332,7 +332,7 @@ def _cleanup_cloud_storage(task: dict):
     cloud_provider = task.get("cloud_provider")
     cloud_key = task.get("cloud_key")
     if cloud_provider and cloud_key:
-        from .cloud_storage import cos_delete, oss_delete
+        from cloud_storage import cos_delete, oss_delete
         if cloud_provider == "cos":
             cos_delete(cloud_key)
         elif cloud_provider == "oss":
@@ -363,7 +363,7 @@ def poll_task(task_id: str, payload: dict | None = None):
     # ── Fun-ASR / Paraformer ──────────────────────────────────────────────────
     elif provider in {"aliyun_fun", "aliyun_paraformer"}:
 
-        from .aliyun_fun import fun_query
+        from providers.aliyun_fun import fun_query
         api_key = _get_credential(credentials, "api_key")
         status, sentences = fun_query(task["provider_task_id"], api_key=api_key)
         if status == "SUCCEEDED":
@@ -386,7 +386,7 @@ def poll_task(task_id: str, payload: dict | None = None):
 
     # ── 腾讯云 ───────────────────────────────────────────────────────────────
     elif provider == "tencent":
-        from .tencent_asr import tencent_query
+        from providers.tencent_asr import tencent_query
         secret_id = _get_credential(credentials, "secret_id")
         secret_key = _get_credential(credentials, "secret_key")
         try:

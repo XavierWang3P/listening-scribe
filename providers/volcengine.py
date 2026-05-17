@@ -4,7 +4,7 @@ from pathlib import Path
 from urllib import request
 from urllib.error import HTTPError, URLError
 
-from .config import env
+from config import env
 
 
 VOLC_SUBMIT_URL = "https://openspeech.bytedance.com/api/v3/auc/bigmodel/submit"

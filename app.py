@@ -6,12 +6,11 @@ import time
 from pathlib import Path
 from wsgiref.simple_server import make_server
 
-from asr_app.config import env
-from asr_app.routes import application
+from config import env
+from routes import application
 
 
 ROOT = Path(__file__).resolve().parent
-WATCH_DIRS = [ROOT / "asr_app"]
 WATCH_SUFFIXES = {".py"}
 
 
@@ -23,10 +22,13 @@ def run_server():
 
 
 def watched_mtimes():
-    paths = [ROOT / "app.py"]
-    for folder in WATCH_DIRS:
-        if folder.exists():
-            paths.extend(path for path in folder.rglob("*") if path.suffix in WATCH_SUFFIXES)
+    paths = []
+    for path in ROOT.rglob("*"):
+        if path.suffix in WATCH_SUFFIXES:
+            # 排除 data, public, .git, .gemini, __pycache__
+            if any(p in path.parts for p in ("data", "public", ".git", ".gemini", "__pycache__")):
+                continue
+            paths.append(path)
     return {
         str(path): path.stat().st_mtime
         for path in paths

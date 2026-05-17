@@ -3,11 +3,11 @@ import mimetypes
 import re
 from urllib import parse
 
-from .config import PUBLIC_DIR, RESULTS_DIR
-from .http_utils import api_error, bytes_response, file_response, json_response, read_json, redirect_response
-from .service import delete_result, get_provider_config, poll_task, submit_recognition, upload_audio
-from .storage import get_audio_meta, get_audio_path, manifest_path, read_json_file, result_dir
-from .utils import normalized_path, safe_relative_path
+from config import PUBLIC_DIR, RESULTS_DIR
+from http_utils import api_error, bytes_response, file_response, json_response, read_json, redirect_response
+from service import delete_result, get_provider_config, poll_task, submit_recognition, upload_audio
+from storage import get_audio_meta, get_audio_path, manifest_path, read_json_file, result_dir
+from utils import normalized_path, safe_relative_path
 
 
 RECORD_RE = r"[0-9]{8}-[0-9]{6}-[a-f0-9]{8}|[a-f0-9]{64}"
