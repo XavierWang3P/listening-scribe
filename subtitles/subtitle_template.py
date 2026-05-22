@@ -20,7 +20,7 @@ _TMPL_DIR = pathlib.Path(__file__).parent / "templates"
 
 # 模板版本号：只要模板文件内容变化，递增此值即可触发已缓存 HTML 的自动重建。
 # 该常量由 service.py 中的 refresh_cached_manifest 机制读取。
-TEMPLATE_VERSION = 16
+TEMPLATE_VERSION = 17
 
 
 # ── 模板文件加载（启动时读取一次，热重载友好）─────────────────────────────────

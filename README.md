@@ -79,7 +79,7 @@ graph TD
 
 ## 🌟 功能特点
 
-1. 多服务商支持：已全量接入火山引擎、阿里云百炼、腾讯云语音识别 ASR 服务。
+1. 多服务商支持：已全量接入火山引擎 录音文件识别-标准版、阿里云百炼、腾讯云语音识别 ASR 服务。
 2. 单页交互界面：主页使用 Bootstrap 5 构建，支持历史记录管理、服务商切换、接口日志实时追加以及 API 密钥 Cookie 选项。
 3. 双重凭证安全机制：
    * 支持后端 `.env` 全局配置，对访问者隐藏凭证细节；
@@ -110,7 +110,7 @@ cp config.example.env .env
 编辑 `.env` 文件：
 
 ```env
-# 火山引擎 (Seed-ASR)
+# 火山引擎 录音文件识别-标准版 (Seed-ASR)
 VOLCENGINE_API_KEY=your_volcengine_api_key
 VOLCENGINE_RESOURCE_ID=volc.seedasr.auc
 VOLCENGINE_MODEL_VERSION=400

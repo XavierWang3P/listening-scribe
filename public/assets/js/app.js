@@ -40,7 +40,7 @@
     providers: [
       {
         id: "volcengine",
-        label: "火山引擎",
+        label: "火山引擎 录音文件识别-标准版",
         product: "录音文件识别",
         doc_url: "https://www.volcengine.com/docs/6561/80820?lang=zh",
         supported: true,

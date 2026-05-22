@@ -79,7 +79,7 @@ The codebase is built on a modular structure with clear separation of concerns:
 
 ## 🌟 Key Features
 
-1. Multiple ASR Providers: Supports Volcengine ASR, Tencent Cloud Speech Recognition ASR, Aliyun Paraformer-v2, Fun-ASR, and Qwen-ASR.
+1. Multiple ASR Providers: Supports Volcengine Recorded Speech Recognition (Standard Edition) ASR, Tencent Cloud Speech Recognition ASR, Aliyun Paraformer-v2, Fun-ASR, and Qwen-ASR.
 2. Single-Page UI: Bootstrap 5 web UI with history management, provider selection, real-time logging, and credential cookie settings.
 3. Dual Credential Mode:
    * Supports server-side `.env` configuration to keep credentials completely hidden from clients.
@@ -110,7 +110,7 @@ cp config.example.env .env
 Edit your `.env` to configure your keys and the public base URL:
 
 ```env
-# Volcengine (Seed-ASR)
+# Volcengine Recorded Speech Recognition - Standard Edition (Seed-ASR)
 VOLCENGINE_API_KEY=your_volcengine_api_key
 VOLCENGINE_RESOURCE_ID=volc.seedasr.auc
 VOLCENGINE_MODEL_VERSION=400
