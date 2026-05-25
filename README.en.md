@@ -87,6 +87,7 @@ The codebase is built on a modular structure with clear separation of concerns:
 4. SHA256-Based Deduplication: Computes audio file hashes to check against existing manifests, yielding instant cache hits, zero repeated uploads, and zero repeated cloud costs.
 5. No Cloud Object Storage (COS) Dependency: Audio and transcription files are fully hosted on the local server, preventing CORS limits, expired links, and Range requests dragging issues.
 6. No Third-Party Python Dependencies: Built entirely on native Python standard libraries.
+7. Fully Localized Frontend Assets: Frontend styles, scripts, and fonts are completely served from the local static assets path, eliminating any external CDN (e.g., Google Fonts, Bootstrap CDN) requests, rendering instantly and supporting intranet/offline environments.
 
 ---
 
