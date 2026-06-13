@@ -20,7 +20,7 @@ _TMPL_DIR = pathlib.Path(__file__).parent / "templates"
 
 # 模板版本号：只要模板文件内容变化，递增此值即可触发已缓存 HTML 的自动重建。
 # 该常量由 service.py 中的 refresh_cached_manifest 机制读取。
-TEMPLATE_VERSION = 17
+TEMPLATE_VERSION = 19
 
 
 # ── 模板文件加载（启动时读取一次，热重载友好）─────────────────────────────────
@@ -43,20 +43,21 @@ def _format_clock(seconds: float) -> str:
 
 
 def _build_cue_items(cues: list[dict]) -> str:
-    """将 cues 列表渲染为一组 <button> 元素字符串。"""
+    """将 cues 列表渲染为段落模式的 HTML 元素字符串（默认）。"""
     if not cues:
         return '<div class="list-group-item empty-state">暂无字幕</div>'
     parts = []
+    parts.append('<div class="cue-paragraph-wrap">')
     for i, c in enumerate(cues):
         time_label = _html.escape(_format_clock(c["start"]))
         text       = _html.escape(c["text"])
         parts.append(
-            f'<button class="cue list-group-item list-group-item-action d-grid align-items-start" '
-            f'type="button" data-index="{i}">'
-            f'<span class="cue-time badge fw-semibold">{time_label}</span>'
+            f'<span class="cue cue-inline" data-index="{i}" role="button" tabindex="0">'
+            f'<span class="cue-time">{time_label}</span>'
             f'<span class="cue-text">{text}</span>'
-            f'</button>'
+            f'</span>'
         )
+    parts.append('</div>')
     return "\n".join(parts)
 
 

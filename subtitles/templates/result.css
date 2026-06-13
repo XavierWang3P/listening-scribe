@@ -457,6 +457,111 @@ body {
 .hide-transcript .cue-text { display: none !important; }
 #audioError { overflow-wrap: anywhere; }
 
+/* ── Paragraph Layout ── */
+.subtitle-list.layout-paragraph {
+  display: block;
+  background: rgba(255, 255, 255, 0.45);
+  border: 1px solid rgba(15, 23, 42, 0.05);
+  border-radius: 20px;
+  padding: 1.5rem 1.8rem;
+  line-height: 2.2;
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.03), 
+              inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+.cue-paragraph-wrap {
+  text-align: justify;
+}
+
+.subtitle-list.layout-paragraph .cue {
+  display: inline;
+  border: none;
+  background: transparent;
+  padding: 0.2rem 0.35rem;
+  margin: 0 0.15rem;
+  border-radius: 6px !important;
+  box-shadow: none !important;
+  color: var(--text-200);
+  cursor: pointer;
+  transition: all 0.2s;
+  scroll-margin-top: calc(var(--sticky-header-height) + var(--sticky-player-height) + 4rem);
+}
+
+.subtitle-list.layout-paragraph .cue-time {
+  display: inline-block;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", "DejaVu Sans Mono", "Noto Sans Mono CJK SC", monospace;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.1rem 0.35rem;
+  margin-right: 0.3rem;
+  vertical-align: baseline;
+  position: relative;
+  top: -0.05em;
+  background: rgba(15, 23, 42, 0.04) !important;
+  color: var(--asr-muted) !important;
+  border: 1px solid rgba(15, 23, 42, 0.08) !important;
+  border-radius: 5px;
+  transition: all 0.15s;
+  line-height: 1;
+}
+
+.subtitle-list.layout-paragraph .cue-text {
+  display: inline;
+  font-size: 1.05rem;
+  color: inherit;
+  font-weight: inherit;
+  transition: all 0.15s;
+  overflow-wrap: anywhere;
+  -webkit-line-clamp: unset;
+  -webkit-box-orient: unset;
+  overflow: visible;
+  padding: 0;
+  background: transparent !important;
+  border-radius: 0;
+}
+
+/* Hover effects for paragraph mode */
+.subtitle-list.layout-paragraph .cue:hover,
+.subtitle-list.layout-paragraph .cue:focus {
+  background-color: var(--asr-accent-soft);
+  color: var(--asr-accent);
+}
+
+.subtitle-list.layout-paragraph .cue:hover .cue-time,
+.subtitle-list.layout-paragraph .cue:focus .cue-time {
+  background: var(--asr-accent-soft) !important;
+  color: var(--asr-accent) !important;
+  border-color: rgba(99, 102, 241, 0.2) !important;
+}
+
+/* Active styles for paragraph mode */
+.subtitle-list.layout-paragraph .cue.active {
+  background-color: rgba(99, 102, 241, 0.12) !important;
+  color: var(--asr-accent) !important;
+  font-weight: 700;
+}
+
+.subtitle-list.layout-paragraph .cue.active .cue-time {
+  background: var(--asr-accent) !important;
+  color: #ffffff !important;
+  border-color: var(--asr-accent) !important;
+}
+
+/* Hide transcript for paragraph mode */
+.hide-transcript .subtitle-list.layout-paragraph .cue-text {
+  display: none !important;
+}
+
+.hide-transcript .subtitle-list.layout-paragraph .cue {
+  display: inline-block;
+  margin-right: 0.25rem;
+}
+
+.hide-transcript .subtitle-list.layout-paragraph .cue-time {
+  margin-left: 0;
+  margin-right: 0;
+}
+
 /* ── Footer ── */
 .app-footer {
   border-top: 1px solid rgba(15, 23, 42, 0.06);

@@ -20,7 +20,7 @@
   const forward3 = document.querySelector("#forward3");
   const rateButtons = Array.from(document.querySelectorAll(".rate-button"));
   const hideText = document.querySelector("#hideText");
-  const cueButtons = Array.from(document.querySelectorAll(".cue"));
+  let cueButtons = [];
   let lastActiveIndex = -1;
 
   /* ── Helpers ── */
@@ -164,15 +164,107 @@
     document.body.classList.toggle("hide-transcript", hideText.checked);
   });
 
-  cueButtons.forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const cue = cues[Number(btn.dataset.index)];
-      if (!cue) return;
-      audio.currentTime = cue.start;
-      syncProgress();
-      audio.play().catch(() => {});
+  const subtitleListEl = document.querySelector(".subtitle-list");
+  const layoutListBtn = document.querySelector("#layoutListBtn");
+  const layoutParagraphBtn = document.querySelector("#layoutParagraphBtn");
+
+  function escapeHtml(str) {
+    if (!str) return "";
+    return str
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  }
+
+  function renderCues(mode) {
+    if (!subtitleListEl) return;
+    if (mode === "paragraph") {
+      subtitleListEl.className = "subtitle-list layout-paragraph";
+      let html = '<div class="cue-paragraph-wrap">';
+      cues.forEach((c, i) => {
+        const timeLabel = formatClock(c.start);
+        html += `<span class="cue cue-inline" data-index="${i}" role="button" tabindex="0">` +
+                  `<span class="cue-time">${timeLabel}</span>` +
+                  `<span class="cue-text">${escapeHtml(c.text)}</span>` +
+                `</span> `;
+      });
+      html += '</div>';
+      subtitleListEl.innerHTML = html;
+    } else {
+      subtitleListEl.className = "list-group subtitle-list layout-list";
+      let html = "";
+      cues.forEach((c, i) => {
+        const timeLabel = formatClock(c.start);
+        html += `<button class="cue list-group-item list-group-item-action d-grid align-items-start" type="button" data-index="${i}">` +
+                  `<span class="cue-time badge fw-semibold">${timeLabel}</span>` +
+                  `<span class="cue-text">${escapeHtml(c.text)}</span>` +
+                `</button>\n`;
+      });
+      if (cues.length === 0) {
+        html = '<div class="list-group-item empty-state">暂无字幕</div>';
+      }
+      subtitleListEl.innerHTML = html;
+    }
+    
+    // Re-bind events
+    cueButtons = Array.from(subtitleListEl.querySelectorAll(".cue"));
+    cueButtons.forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const cue = cues[Number(btn.dataset.index)];
+        if (!cue) return;
+        audio.currentTime = cue.start;
+        syncProgress();
+        audio.play().catch(() => {});
+      });
+      if (mode === "paragraph") {
+        btn.addEventListener("keydown", (e) => {
+          if (e.code === "Enter" || e.code === "Space") {
+            e.preventDefault();
+            btn.click();
+          }
+        });
+      }
     });
-  });
+
+    // Reset active index to force update highlight
+    lastActiveIndex = -1;
+    updateActiveCue(false);
+  }
+
+  let currentLayout = localStorage.getItem("asr-layout-preference") || "paragraph";
+
+  function setSubtitlesLayout(layout) {
+    currentLayout = layout;
+    localStorage.setItem("asr-layout-preference", layout);
+    
+    if (layoutListBtn && layoutParagraphBtn) {
+      if (layout === "paragraph") {
+        layoutListBtn.classList.remove("active");
+        layoutListBtn.removeAttribute("aria-pressed");
+        layoutParagraphBtn.classList.add("active");
+        layoutParagraphBtn.setAttribute("aria-pressed", "true");
+      } else {
+        layoutParagraphBtn.classList.remove("active");
+        layoutParagraphBtn.removeAttribute("aria-pressed");
+        layoutListBtn.classList.add("active");
+        layoutListBtn.setAttribute("aria-pressed", "true");
+      }
+    }
+    
+    renderCues(layout);
+  }
+
+  if (layoutListBtn) {
+    layoutListBtn.addEventListener("click", () => setSubtitlesLayout("list"));
+  }
+  if (layoutParagraphBtn) {
+    layoutParagraphBtn.addEventListener("click", () => setSubtitlesLayout("paragraph"));
+  }
+
+  // Set initial layout
+  setSubtitlesLayout(currentLayout);
 
   document.addEventListener("keydown", (e) => {
     if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA" || e.target.tagName === "BUTTON") {

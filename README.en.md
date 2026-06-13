@@ -80,14 +80,15 @@ The codebase is built on a modular structure with clear separation of concerns:
 ## 🌟 Key Features
 
 1. Multiple ASR Providers: Supports Volcengine Recorded Speech Recognition (Standard Edition) ASR, Tencent Cloud Speech Recognition ASR, Aliyun Paraformer-v2, Fun-ASR, and Qwen-ASR.
-2. Single-Page UI: Bootstrap 5 web UI with history management, provider selection, real-time logging, and credential cookie settings.
-3. Dual Credential Mode:
+2. Dual Layout Modes: The generated interactive subtitle pages support seamless toggling between "List Mode" and "Paragraph Mode". Defaults to the highly-efficient "Paragraph Mode" where text flows naturally with baseline-aligned timestamp markers. Clicking any sentence or timestamp instantly seeks to that precise segment of the audio track.
+3. Single-Page UI: Bootstrap 5 web UI with history management, provider selection, real-time logging, and credential cookie settings.
+4. Dual Credential Mode:
    * Supports server-side `.env` configuration to keep credentials completely hidden from clients.
    * Supports frontend temporary inputs (with "Remember credentials" options). Frontend inputs carry absolute priority, avoiding env-key overrides.
-4. SHA256-Based Deduplication: Computes audio file hashes to check against existing manifests, yielding instant cache hits, zero repeated uploads, and zero repeated cloud costs.
-5. No Cloud Object Storage (COS) Dependency: Audio and transcription files are fully hosted on the local server, preventing CORS limits, expired links, and Range requests dragging issues.
-6. No Third-Party Python Dependencies: Built entirely on native Python standard libraries.
-7. Fully Localized Frontend Assets: Frontend styles, scripts, and fonts are completely served from the local static assets path, eliminating any external CDN (e.g., Google Fonts, Bootstrap CDN) requests, rendering instantly and supporting intranet/offline environments.
+5. SHA256-Based Deduplication: Computes audio file hashes to check against existing manifests, yielding instant cache hits, zero repeated uploads, and zero repeated cloud costs.
+6. No Cloud Object Storage (COS) Dependency: Audio and transcription files are fully hosted on the local server, preventing CORS limits, expired links, and Range requests dragging issues.
+7. No Third-Party Python Dependencies: Built entirely on native Python standard libraries.
+8. Fully Localized Frontend Assets: Frontend styles, scripts, and fonts are completely served from the local static assets path, eliminating any external CDN (e.g., Google Fonts, Bootstrap CDN) requests, rendering instantly and supporting intranet/offline environments.
 
 ---
 
@@ -150,7 +151,6 @@ ALLOWED_ORIGIN=*
 
 ### 3. Run the App
 
-#### Method A: Physical Host
 Requires Python 3.12 or newer. No pip installations required.
 
 ```bash
@@ -162,13 +162,6 @@ python3 app.py --log-level DEBUG
 
 # Development Mode with DEBUG logs (hot reload enabled, static assets browser caching disabled)
 python3 app.py --reload --log-level DEBUG
-```
-
-#### Method B: Docker Deployment
-Run using our lightweight Alpine-Python Docker Compose stack:
-
-```bash
-docker compose up -d --build
 ```
 
 ---
